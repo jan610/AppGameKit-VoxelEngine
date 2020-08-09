@@ -28,8 +28,11 @@ SetDefaultWrapU(1)
 SetDefaultWrapU(1)
 SetGenerateMipmaps(0)
 
-local Subimages as SubimageData[]
-Voxel_ReadSubimages("terrain subimages.txt", Subimages)
+//~local Subimages as SubimageData[]
+//~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
+
+global Faceimages as FaceimageData
+Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
 
 World as WorldData[129,17,129]
 
@@ -48,25 +51,29 @@ freq#=8.0
 for X=1 to World.length-1
 	for Y=1 to World[0].length
 		for Z=1 to World[0,0].length-1
-			Value#=abs(Noise_Perlin2(X/freq#,Z/freq#))
-			MaxY=Value#*World[0].length
-			MaxY=(World[0].length*0.75)+MaxY/4.0
-			if Y<MaxY then World[X,Y,Z].CubeType=1
+			Value#=abs(Noise_Perlin2(X/freq#,Z/freq#))*World[0].length/4.0
+			MaxGrass=(World[0].length*0.75)+Value#
+			MaxStone=(World[0].length*0.5)+Value#
+			if Y>MaxStone and Y<MaxGrass
+				World[X,Y,Z].CubeType=1
+			elseif Y<=MaxStone
+				World[X,Y,Z].CubeType=2
+			endif
 		next Z
 	next Y
 next X
 
-freq#=12
-for X=1 to World.length-1
-	for Y=1 to World[0].length-1
-		for Z=1 to World[0,0].length-1
-			Value#=abs(Noise_Perlin3(X/freq#,Y/freq#,Z/freq#))
-			if Value#>0.55 then World[X,Y,Z].CubeType=0
-		next Z
-	next Y
-next X
+//~freq#=12
+//~for X=1 to World.length-1
+//~	for Y=1 to World[0].length-1
+//~		for Z=1 to World[0,0].length-1
+//~			Value#=abs(Noise_Perlin3(X/freq#,Y/freq#,Z/freq#))
+//~			if Value#>0.4 then World[X,Y,Z].CubeType=0
+//~		next Z
+//~	next Y
+//~next X
 
-Voxel_InitWorld(Subimages,World)
+Voxel_InitWorld(Faceimages.Subimages,World)
 
 do
     Print("FPS: "+str(ScreenFPS(),0))
@@ -87,15 +94,9 @@ do
     NewCameraZ#=GetCameraZ(1)
     
 //~    if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.3)>0
-//~    	RayCastCount=GetObjectRayCastNumHits()
-//~    	for RayCastID=0 to RayCastCount
-//~			NewCameraX#=NewCameraX#+GetObjectRayCastSlideX(RayCastID)
-//~			NewCameraY#=NewCameraY#+GetObjectRayCastSlideY(RayCastID)
-//~			NewCameraZ#=NewCameraZ#+GetObjectRayCastSlideZ(RayCastID)
-//~		next RayCastID
-//~		NewCameraX#=NewCameraX#/RayCastCount
-//~		NewCameraY#=NewCameraY#/RayCastCount
-//~		NewCameraZ#=NewCameraZ#/RayCastCount
+//~		NewCameraX#=GetObjectRayCastSlideX(0)
+//~		NewCameraY#=GetObjectRayCastSlideY(0)
+//~		NewCameraZ#=GetObjectRayCastSlideZ(0)
 //~		
 //~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
 //~	endif
@@ -131,7 +132,7 @@ do
 		CubeX=1+Mod(X-1,ChunkSize)
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
-		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndZ*ChunkEndZ
 	endif
     
     if GetRawMouseLeftPressed()=1
@@ -149,7 +150,7 @@ do
 			HitGridY=round(HitPositionY#+HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#+HitNormalZ#*0.5)
 			
-			Voxel_AddCubeToObject(HitObjectID,Subimages,World,HitGridX,HitGridY,HitGridZ)
+			Voxel_AddCubeToObject(HitObjectID,Faceimages.Subimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
     
@@ -168,7 +169,7 @@ do
 			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
 			
-			Voxel_RemoveCubeFromObject(HitObjectID,Subimages,World,HitGridX,HitGridY,HitGridZ)
+			Voxel_RemoveCubeFromObject(HitObjectID,Faceimages.Subimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
     

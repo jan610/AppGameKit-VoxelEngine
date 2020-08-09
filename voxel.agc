@@ -62,6 +62,20 @@ type SubimageData
 	Height
 endtype
 
+type FaceIndexData
+	FrontID
+	BackID
+	UpID
+	DownID
+	LeftID
+	RightID
+endtype
+
+type FaceimageData
+	Subimages as SubimageData[]
+	FaceimageIndices as FaceIndexData[]
+endtype
+
 #constant ChunkSize	16
 
 // Functions
@@ -88,13 +102,6 @@ function Voxel_InitWorld(Subimages ref as SubimageData[],World ref as WorldData[
 				StartZ=ChunkZ*ChunkSize
 				EndZ=StartZ+ChunkSize
 				
-				if EndX>World.length-1 then EndX=World.length-1
-				if EndY>World[0].length-1 then EndY=World[0].length-1
-				if EndZ>World[0,0].length-1 then EndZ=World[0,0].length-1
-				if StartX<1 then StartX=1
-				if StartY<1 then StartY=1
-				if StartZ<1 then StartZ=1
-				
 				for X=StartX to EndX
 					for Y=StartY to EndY
 						for Z=StartZ to EndZ
@@ -119,6 +126,11 @@ function Voxel_InitWorld(Subimages ref as SubimageData[],World ref as WorldData[
 	next ChunkX
 endfunction
 
+function Voxel_ReadFaceImages(SubImageFile$,FaceIndexFile$, Faceimages ref as FaceimageData)
+	Voxel_ReadSubimages(SubImageFile$,Faceimages.Subimages)
+	Voxel_ReadFaceimageIdices(FaceIndexFile$,Faceimages.FaceimageIndices)
+endfunction
+
 function Voxel_ReadSubimages(File$,Subimages ref as SubimageData[])
 	Subimages.length=-1
 	local TempSubimage as SubimageData
@@ -130,6 +142,23 @@ function Voxel_ReadSubimages(File$,Subimages ref as SubimageData[])
 		TempSubimage.Width=val(GetStringToken(Line$,":",4))
 		TempSubimage.Height=val(GetStringToken(Line$,":",5))
 		Subimages.insert(TempSubimage)
+	until FileEOF(FileID)
+	CloseFile(FileID)
+endfunction
+
+function Voxel_ReadFaceimageIdices(File$,FaceIndices ref as FaceIndexData[])
+	FaceIndices.length=-1
+	local TempFaceIndices as FaceIndexData
+	FileID=OpenToRead(File$)
+	repeat
+		Line$=ReadLine(FileID)
+		TempFaceIndices.FrontID=val(GetStringToken(Line$,":",2))
+		TempFaceIndices.BackID=val(GetStringToken(Line$,":",3))
+		TempFaceIndices.UpID=val(GetStringToken(Line$,":",4))
+		TempFaceIndices.DownID=val(GetStringToken(Line$,":",5))
+		TempFaceIndices.RightID=val(GetStringToken(Line$,":",6))
+		TempFaceIndices.LeftID=val(GetStringToken(Line$,":",7))
+		FaceIndices.insert(TempFaceIndices)
 	until FileEOF(FileID)
 	CloseFile(FileID)
 endfunction
@@ -235,16 +264,6 @@ function Voxel_UpdateObject(ObjectID,Subimages ref as SubimageData[],World ref a
 		StartZ=ObjectZ
 		EndZ=StartZ+ChunkSize
 		
-		if EndX>World.length-1 then EndX=World.length-1
-		if EndY>World[0].length-1 then EndY=World[0].length-1
-		if EndZ>World[0,0].length-1 then EndZ=World[0,0].length-1
-		if StartX<1 then StartX=1
-		if StartY<1 then StartY=1
-		if StartZ<1 then StartZ=1
-		
-//~		message(str(StartX)+","+str(StartY)+","+str(StartZ))
-//~		message(str(EndX)+","+str(EndY)+","+str(EndZ))
-		
 		local Object as ObjectData
 		for X=StartX to EndX
 			for Y=StartY to EndY
@@ -264,27 +283,44 @@ function Voxel_UpdateObject(ObjectID,Subimages ref as SubimageData[],World ref a
 endfunction
 
 function Voxel_GenerateCubeFaces(Object ref as ObjectData,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
-	if World[X,Y,Z].CubeType=1
+	if World[X,Y,Z].CubeType>0
+		local TempSubimages as SubimageData[5]
+		if World[X,Y,Z].CubeType=1
+			TempSubimages[0]=Subimages[2]
+			TempSubimages[1]=Subimages[2]
+			TempSubimages[2]=Subimages[2]
+			TempSubimages[3]=Subimages[2]
+			TempSubimages[4]=Subimages[0]
+			TempSubimages[5]=Subimages[0]
+		endif	
+		if World[X,Y,Z].CubeType=2
+			TempSubimages[0]=Subimages[16]
+			TempSubimages[1]=Subimages[16]
+			TempSubimages[2]=Subimages[16]
+			TempSubimages[3]=Subimages[16]
+			TempSubimages[4]=Subimages[16]
+			TempSubimages[5]=Subimages[16]
+		endif		
 		CubeX=1+Mod(X-1,ChunkSize)
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
 		if World[X,Y,Z+1].CubeType=0
-			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceFront)
+			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceFront)
 		endif
 		if World[X,Y,Z-1].CubeType=0
-			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceBack)
+			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceBack)
 		endif
 		if World[X,Y+1,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceUp)
+			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceUp)
 		endif
 		if World[X,Y-1,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceDown)
+			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceDown)
 		endif
 		if World[X+1,Y,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceRight)
+			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceRight)
 		endif
 		if World[X-1,Y,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceLeft)
+			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceLeft)
 		endif
 	endif
 endfunction
@@ -309,10 +345,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
 			
-			Left#=Subimages[2].X/TextureSize#
-			Top#=Subimages[2].Y/TextureSize#
-			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
-			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Left#=Subimages[0].X/TextureSize#
+			Top#=Subimages[0].Y/TextureSize#
+			Right#=(Subimages[0].X+Subimages[0].Width)/TextureSize#
+			Bottom#=(Subimages[0].Y+Subimages[0].Height)/TextureSize#
 			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
@@ -344,10 +380,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,-1)
 			Voxel_SetObjectFaceNormal(TempVertex[3],0,0,-1)
 			
-			Left#=Subimages[2].X/TextureSize#
-			Top#=Subimages[2].Y/TextureSize#
-			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
-			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Left#=Subimages[1].X/TextureSize#
+			Top#=Subimages[1].Y/TextureSize#
+			Right#=(Subimages[1].X+Subimages[1].Width)/TextureSize#
+			Bottom#=(Subimages[1].Y+Subimages[1].Height)/TextureSize#
 			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
@@ -414,10 +450,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceNormal(TempVertex[2],1,0,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],1,0,0)
 			
-			Left#=Subimages[2].X/TextureSize#
-			Top#=Subimages[2].Y/TextureSize#
-			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
-			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Left#=Subimages[3].X/TextureSize#
+			Top#=Subimages[3].Y/TextureSize#
+			Right#=(Subimages[3].X+Subimages[3].Width)/TextureSize#
+			Bottom#=(Subimages[3].Y+Subimages[3].Height)/TextureSize#
 			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
@@ -449,10 +485,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,1,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],0,1,0)
 			
-			Left#=Subimages[0].X/TextureSize#
-			Top#=Subimages[0].Y/TextureSize#
-			Right#=(Subimages[0].X+Subimages[0].Width)/TextureSize#
-			Bottom#=(Subimages[0].Y+Subimages[0].Height)/TextureSize#
+			Left#=Subimages[4].X/TextureSize#
+			Top#=Subimages[4].Y/TextureSize#
+			Right#=(Subimages[4].X+Subimages[4].Width)/TextureSize#
+			Bottom#=(Subimages[4].Y+Subimages[4].Height)/TextureSize#
 			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
@@ -484,10 +520,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,-1,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],0,-1,0)
 			
-			Left#=Subimages[2].X/TextureSize#
-			Top#=Subimages[2].Y/TextureSize#
-			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
-			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Left#=Subimages[5].X/TextureSize#
+			Top#=Subimages[5].Y/TextureSize#
+			Right#=(Subimages[5].X+Subimages[5].Width)/TextureSize#
+			Bottom#=(Subimages[5].Y+Subimages[5].Height)/TextureSize#
 			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
