@@ -55,90 +55,247 @@ type WorldData
 	CubeType
 endtype
 
-global AtlasImageID
+type SubimageData
+	X
+	Y
+	Width
+	Height
+endtype
+
+#constant ChunkSize	16
 
 // Functions
 
 // Initialise the Voxel Engine
-function Voxel_InitWorld(World ref as WorldData[][][])
-	local Object as ObjectData
-	
-	for X=1 to World.length-1
-		for Y=1 to World[0].length-1
-			for Z=1 to World[0,0].length-1
-				Voxel_GenerateCubeFaces(Object,World,X,Y,Z)
-			next Z
-		next Y
-	next X
-	
-	MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length)
-	Voxel_WriteMeshMemblock(MemblockID,Object)
-	ChunckObjectID=CreateObjectFromMeshMemblock(MemblockID)
-	DeleteMemblock(MemblockID)
-	
+function Voxel_InitWorld(Subimages ref as SubimageData[],World ref as WorldData[][][])
 	SetDefaultWrapU(1)
 	SetDefaultWrapV(1)
 	AtlasImageID=LoadImage("terrain.png")
-	SetObjectImage(ChunckObjectID,AtlasImageID,0)
-endfunction
-
-function Voxel_RemoveCubeFromObject(ObjectID,World ref as WorldData[][][],X,Y,Z)
-	World[X,Y,Z].CubeType=0
-	Voxel_UpdateObject(ObjectID,World)
-endfunction
-
-function Voxel_AddCubeToObject(ObjectID,World ref as WorldData[][][],X,Y,Z)
-	World[X,Y,Z].CubeType=1
-	Voxel_UpdateObject(ObjectID,World)
-endfunction
-
-function Voxel_UpdateObject(ObjectID,World ref as WorldData[][][])
+	
+	ChunkEndX=trunc(World.length/ChunkSize)
+	ChunkEndY=trunc(World[0].length/ChunkSize)
+	ChunkEndZ=trunc(World[0,0].length/ChunkSize)
+	
 	local Object as ObjectData
 	
-	for X=1 to World.length-1
-		for Y=1 to World[0].length-1
-			for Z=1 to World[0,0].length-1
-				Voxel_GenerateCubeFaces(Object,World,X,Y,Z)
-			next Z
-		next Y
-	next X
-	
-	MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length)
-	Voxel_WriteMeshMemblock(MemblockID,Object)
-	SetObjectMeshFromMemblock(ObjectID,1,MemblockID)
-	DeleteMemblock(MemblockID)
+	for ChunkX=0 to ChunkEndX-1
+		for ChunkY=0 to ChunkEndY-1
+			for ChunkZ=0 to ChunkEndZ-1
+				StartX=ChunkX*ChunkSize
+				EndX=StartX+ChunkSize
+				StartY=ChunkY*ChunkSize
+				EndY=StartY+ChunkSize
+				StartZ=ChunkZ*ChunkSize
+				EndZ=StartZ+ChunkSize
+				
+				if EndX>World.length-1 then EndX=World.length-1
+				if EndY>World[0].length-1 then EndY=World[0].length-1
+				if EndZ>World[0,0].length-1 then EndZ=World[0,0].length-1
+				if StartX<1 then StartX=1
+				if StartY<1 then StartY=1
+				if StartZ<1 then StartZ=1
+				
+				for X=StartX to EndX
+					for Y=StartY to EndY
+						for Z=StartZ to EndZ
+							Voxel_GenerateCubeFaces(Object,Subimages,World,X,Y,Z)
+						next Z
+					next Y
+				next X
+				
+				MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length)
+				Voxel_WriteMeshMemblock(MemblockID,Object)
+				Object.Index.length=-1
+				Object.Vertex.length=-1
+				
+				ObjectID=1+ChunkX+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+				CreateObjectFromMeshMemblock(ObjectID,MemblockID)
+				DeleteMemblock(MemblockID)
+				
+				SetObjectPosition(ObjectID,ChunkX*ChunkSize,ChunkY*ChunkSize,ChunkZ*ChunkSize)
+				SetObjectImage(ObjectID,AtlasImageID,0)
+			next ChunkZ
+		next ChunkY
+	next ChunkX
 endfunction
 
-function Voxel_GenerateCubeFaces(Object ref as ObjectData,World ref as WorldData[][][],X,Y,Z)
+function Voxel_ReadSubimages(File$,Subimages ref as SubimageData[])
+	Subimages.length=-1
+	local TempSubimage as SubimageData
+	FileID=OpenToRead(File$)
+	repeat
+		Line$=ReadLine(FileID)
+		TempSubimage.X=val(GetStringToken(Line$,":",2))
+		TempSubimage.Y=val(GetStringToken(Line$,":",3))
+		TempSubimage.Width=val(GetStringToken(Line$,":",4))
+		TempSubimage.Height=val(GetStringToken(Line$,":",5))
+		Subimages.insert(TempSubimage)
+	until FileEOF(FileID)
+	CloseFile(FileID)
+endfunction
+
+function Voxel_RemoveCubeFromObject(ObjectID,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
+	X=Voxel_Clamp(X,1,World.length-1)
+	Y=Voxel_Clamp(Y,1,World[0].length-1)
+	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
+	
+	World[X,Y,Z].CubeType=0
+	Voxel_UpdateObject(ObjectID,Subimages,World)
+	
+	ChunkX=round((X-1)/ChunkSize)
+	ChunkY=round((Y-1)/ChunkSize)
+	ChunkZ=round((Z-1)/ChunkSize)
+	ChunkEndX=trunc(World.length/ChunkSize)
+	ChunkEndY=trunc(World[0].length/ChunkSize)
+	ChunkEndZ=trunc(World[0,0].length/ChunkSize)
+	CubeX=1+Mod(X-1,ChunkSize)
+	CubeY=1+Mod(Y-1,ChunkSize)
+	CubeZ=1+Mod(Z-1,ChunkSize)
+
+	if CubeX=16
+		NeighbourObjectID=1+(ChunkX+1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeX=1
+		NeighbourObjectID=1+(ChunkX-1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeY=16
+		NeighbourObjectID=1+ChunkX+(ChunkY+1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeY=1
+		NeighbourObjectID=1+ChunkX+(ChunkY-1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeZ=16
+		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ+1)*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeZ=1
+		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ-1)*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+endfunction
+
+function Voxel_AddCubeToObject(ObjectID,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
+	X=Voxel_Clamp(X,1,World.length-1)
+	Y=Voxel_Clamp(Y,1,World[0].length-1)
+	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
+	
+	World[X,Y,Z].CubeType=1
+	Voxel_UpdateObject(ObjectID,Subimages,World)
+	
+	ChunkX=round((X-1)/ChunkSize)
+	ChunkY=round((Y-1)/ChunkSize)
+	ChunkZ=round((Z-1)/ChunkSize)
+	ChunkEndX=trunc(World.length/ChunkSize)
+	ChunkEndY=trunc(World[0].length/ChunkSize)
+	ChunkEndZ=trunc(World[0,0].length/ChunkSize)
+	CubeX=1+Mod(X-1,ChunkSize)
+	CubeY=1+Mod(Y-1,ChunkSize)
+	CubeZ=1+Mod(Z-1,ChunkSize)
+
+	if CubeX=16
+		NeighbourObjectID=1+(ChunkX+1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeX=1
+		NeighbourObjectID=1+(ChunkX-1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeY=16
+		NeighbourObjectID=1+ChunkX+(ChunkY+1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeY=1
+		NeighbourObjectID=1+ChunkX+(ChunkY-1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeZ=16
+		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ+1)*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+	if CubeZ=1
+		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ-1)*ChunkEndY*ChunkEndZ
+		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+	endif
+endfunction
+
+function Voxel_UpdateObject(ObjectID,Subimages ref as SubimageData[],World ref as WorldData[][][])
+	if GetObjectExists(ObjectID)
+		ObjectX=GetObjectX(ObjectID)
+		ObjectY=GetObjectY(ObjectID)
+		ObjectZ=GetObjectZ(ObjectID)
+		
+		StartX=ObjectX
+		EndX=StartX+ChunkSize
+		StartY=ObjectY
+		EndY=StartY+ChunkSize
+		StartZ=ObjectZ
+		EndZ=StartZ+ChunkSize
+		
+		if EndX>World.length-1 then EndX=World.length-1
+		if EndY>World[0].length-1 then EndY=World[0].length-1
+		if EndZ>World[0,0].length-1 then EndZ=World[0,0].length-1
+		if StartX<1 then StartX=1
+		if StartY<1 then StartY=1
+		if StartZ<1 then StartZ=1
+		
+//~		message(str(StartX)+","+str(StartY)+","+str(StartZ))
+//~		message(str(EndX)+","+str(EndY)+","+str(EndZ))
+		
+		local Object as ObjectData
+		for X=StartX to EndX
+			for Y=StartY to EndY
+				for Z=StartZ to EndZ
+					Voxel_GenerateCubeFaces(Object,Subimages,World,X,Y,Z)
+				next Z
+			next Y
+		next X
+		
+		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length)
+		Voxel_WriteMeshMemblock(MemblockID,Object)
+		SetObjectMeshFromMemblock(ObjectID,1,MemblockID)
+		DeleteMemblock(MemblockID)
+		Object.Index.length=-1
+		Object.Vertex.length=-1
+	endif
+endfunction
+
+function Voxel_GenerateCubeFaces(Object ref as ObjectData,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
 	if World[X,Y,Z].CubeType=1
+		CubeX=1+Mod(X-1,ChunkSize)
+		CubeY=1+Mod(Y-1,ChunkSize)
+		CubeZ=1+Mod(Z-1,ChunkSize)
 		if World[X,Y,Z+1].CubeType=0
-			Voxel_AddFaceToObject(Object,X,Y,Z,FaceFront)
+			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceFront)
 		endif
 		if World[X,Y,Z-1].CubeType=0
-			Voxel_AddFaceToObject(Object,X,Y,Z,FaceBack)
+			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceBack)
 		endif
 		if World[X,Y+1,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,X,Y,Z,FaceUp)
+			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceUp)
 		endif
 		if World[X,Y-1,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,X,Y,Z,FaceDown)
+			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceDown)
 		endif
 		if World[X+1,Y,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,X,Y,Z,FaceRight)
+			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceRight)
 		endif
 		if World[X-1,Y,Z].CubeType=0
-			Voxel_AddFaceToObject(Object,X,Y,Z,FaceLeft)
+			Voxel_AddFaceToObject(Object,Subimages,CubeX,CubeY,CubeZ,FaceLeft)
 		endif
 	endif
 endfunction
 
 // Populate the MeshObject with Data
-function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
+function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as SubimageData[],X,Y,Z,FaceDir)
 	TempVertex as VertexData[3]
 	HalfFaceSize#=0.5	
 	TileCount=16
-	TextureSize=256
-	TileSize#=TextureSize/TileCount
+	TextureSize#=256
+	TileSize#=TextureSize#/TileCount
 	TexelHalfSize#=(1/TileSize#/16)*0.5
 	Select FaceDir
 		case FaceFront
@@ -152,10 +309,14 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
 			
-			Voxel_SetObjectFaceUV(TempVertex[0],1/TileSize#-TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[1],0+TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[2],0+TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[3],1/TileSize#-TexelHalfSize#,1/TileSize#-TexelHalfSize#)
+			Left#=Subimages[2].X/TextureSize#
+			Top#=Subimages[2].Y/TextureSize#
+			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
+			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
 			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
 			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
@@ -183,10 +344,14 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,-1)
 			Voxel_SetObjectFaceNormal(TempVertex[3],0,0,-1)
 			
-			Voxel_SetObjectFaceUV(TempVertex[0],1/TileSize#-TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[1],0+TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[2],0+TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[3],1/TileSize#-TexelHalfSize#,1/TileSize#-TexelHalfSize#)
+			Left#=Subimages[2].X/TextureSize#
+			Top#=Subimages[2].Y/TextureSize#
+			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
+			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
 			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
 			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
@@ -214,10 +379,14 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
 			Voxel_SetObjectFaceNormal(TempVertex[2],-1,0,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],-1,0,0)
 			
-			Voxel_SetObjectFaceUV(TempVertex[0],1/TileSize#-TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[1],0+TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[2],0+TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[3],1/TileSize#-TexelHalfSize#,1/TileSize#-TexelHalfSize#)
+			Left#=Subimages[2].X/TextureSize#
+			Top#=Subimages[2].Y/TextureSize#
+			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
+			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
 			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
 			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
@@ -245,10 +414,14 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
 			Voxel_SetObjectFaceNormal(TempVertex[2],1,0,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],1,0,0)
 			
-			Voxel_SetObjectFaceUV(TempVertex[0],1/TileSize#-TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[1],0+TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[2],0+TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[3],1/TileSize#-TexelHalfSize#,1/TileSize#-TexelHalfSize#)
+			Left#=Subimages[2].X/TextureSize#
+			Top#=Subimages[2].Y/TextureSize#
+			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
+			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
 			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
 			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
@@ -276,10 +449,14 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,1,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],0,1,0)
 			
-			Voxel_SetObjectFaceUV(TempVertex[0],1/TileSize#-TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[1],0+TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[2],0+TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[3],1/TileSize#-TexelHalfSize#,1/TileSize#-TexelHalfSize#)
+			Left#=Subimages[0].X/TextureSize#
+			Top#=Subimages[0].Y/TextureSize#
+			Right#=(Subimages[0].X+Subimages[0].Width)/TextureSize#
+			Bottom#=(Subimages[0].Y+Subimages[0].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
 			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
 			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
@@ -307,10 +484,14 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,X,Y,Z,FaceDir)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,-1,0)
 			Voxel_SetObjectFaceNormal(TempVertex[3],0,-1,0)
 			
-			Voxel_SetObjectFaceUV(TempVertex[0],0+TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[1],1/TileSize#-TexelHalfSize#,1/TileSize#-TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[2],1/TileSize#-TexelHalfSize#,0+TexelHalfSize#)
-			Voxel_SetObjectFaceUV(TempVertex[3],0+TexelHalfSize#,0+TexelHalfSize#)
+			Left#=Subimages[2].X/TextureSize#
+			Top#=Subimages[2].Y/TextureSize#
+			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
+			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
 			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
 			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
@@ -382,9 +563,11 @@ endfunction
 // Position,Normal,UV,Color,Tangent and Bitangent Data
 function Voxel_CreateMeshMemblock(VertexCount)
 	IndexCount=6*trunc(1+VertexCount/4) // You can start finding the Bug Here
-	Attributes=6
-	VertexSize=60
-	VertexOffset=100
+	Attributes=5
+//~	VertexSize=60
+	VertexSize=3*4+3*4+2*4+3*4+3*4
+//~	VertexOffset=100
+	VertexOffset=88
 	IndexOffset=VertexOffset+(VertexCount*VertexSize)
 
 	MemblockID=Creatememblock(IndexOffset+(IndexCount*4))
@@ -410,43 +593,58 @@ function Voxel_CreateMeshMemblock(VertexCount)
 	SetMemblockByte(MemblockID,52,0)
 	SetMemblockByte(MemblockID,52+1,2)
 	SetMemblockByte(MemblockID,52+2,0)
-	SetMemblockByte(MemblockID,52+3,4)
+	SetMemblockByte(MemblockID,52+3,4) 
 	SetMemblockString(MemblockID,52+4,"uv"+chr(0))
 	
-	SetMemblockByte(MemblockID,60,1)
-	SetMemblockByte(MemblockID,60+1,4)
-	SetMemblockByte(MemblockID,60+2,1)
+	SetMemblockByte(MemblockID,60,0)
+	SetMemblockByte(MemblockID,60+1,3)
+	SetMemblockByte(MemblockID,60+2,0)
 	SetMemblockByte(MemblockID,60+3,8)
-	SetMemblockString(MemblockID,60+4,"color"+chr(0))
+	SetMemblockString(MemblockID,60+4,"tangent"+chr(0))
 
 	SetMemblockByte(MemblockID,72,0)
 	SetMemblockByte(MemblockID,72+1,3)
 	SetMemblockByte(MemblockID,72+2,0)
-	SetMemblockByte(MemblockID,72+3,8)
-	SetMemblockString(MemblockID,72+4,"tangent"+chr(0))
+	SetMemblockByte(MemblockID,72+3,12)
+	SetMemblockString(MemblockID,72+4,"bitangent"+chr(0))
+	
+//~	SetMemblockByte(MemblockID,60,1)
+//~	SetMemblockByte(MemblockID,60+1,4)
+//~	SetMemblockByte(MemblockID,60+2,1)
+//~	SetMemblockByte(MemblockID,60+3,8)
+//~	SetMemblockString(MemblockID,60+4,"color"+chr(0))
 
-	SetMemblockByte(MemblockID,84,0)
-	SetMemblockByte(MemblockID,84+1,3)
-	SetMemblockByte(MemblockID,84+2,0)
-	SetMemblockByte(MemblockID,84+3,12)
-	SetMemblockString(MemblockID,84+4,"bitangent"+chr(0))
+//~	SetMemblockByte(MemblockID,72,0)
+//~	SetMemblockByte(MemblockID,72+1,3)
+//~	SetMemblockByte(MemblockID,72+2,0)
+//~	SetMemblockByte(MemblockID,72+3,8)
+//~	SetMemblockString(MemblockID,72+4,"tangent"+chr(0))
+
+//~	SetMemblockByte(MemblockID,84,0)
+//~	SetMemblockByte(MemblockID,84+1,3)
+//~	SetMemblockByte(MemblockID,84+2,0)
+//~	SetMemblockByte(MemblockID,84+3,12)
+//~	SetMemblockString(MemblockID,84+4,"bitangent"+chr(0))
 endfunction MemblockID
 
 function Voxel_WriteMeshMemblock(MemblockID,Object ref as ObjectData)
 	VertexCount=Object.Vertex.length
 	IndexCount=Object.Index.length
-	Attributes=6
-	VertexSize=60
-	VertexOffset=100
+//~	VertexSize=60
+	VertexSize=3*4+3*4+2*4+3*4+3*4
+//~	VertexOffset=100
+	VertexOffset=88
 	IndexOffset=VertexOffset+(VertexCount*VertexSize)
-	TangentOffset=3*4+3*4+2*4+4*1
-	BitangentOffset=3*4+3*4+2*4+4*1+3*4
+	TangentOffset=3*4+3*4+2*4
+	BitangentOffset=3*4+3*4+2*4+3*4
+//~	TangentOffset=3*4+3*4+2*4+4*1
+//~	BitangentOffset=3*4+3*4+2*4+4*1+3*4
 	for VertexID=0 to Object.Vertex.length
 		Offset=VertexOffset+(VertexID*VertexSize)
 		SetMeshMemblockVertexPosition(MemblockID,VertexID,Object.Vertex[VertexID].Pos.X#,Object.Vertex[VertexID].Pos.Y#,Object.Vertex[VertexID].Pos.Z#)
 		SetMeshMemblockVertexNormal(MemblockID,VertexID,Object.Vertex[VertexID].Normal.X#,Object.Vertex[VertexID].Normal.Y#,Object.Vertex[VertexID].Normal.Z#)
 		SetMeshMemblockVertexUV(MemblockID,VertexID,Object.Vertex[VertexID].UV.X#,Object.Vertex[VertexID].UV.Y#)
-		SetMeshMemblockVertexColor(MemblockID,VertexID,Object.Vertex[VertexID].Color.Red#*255,Object.Vertex[VertexID].Color.Green#*255,Object.Vertex[VertexID].Color.Blue#*255,Object.Vertex[VertexID].Color.Alpha#*255)
+//~		SetMeshMemblockVertexColor(MemblockID,VertexID,Object.Vertex[VertexID].Color.Red#*255,Object.Vertex[VertexID].Color.Green#*255,Object.Vertex[VertexID].Color.Blue#*255,Object.Vertex[VertexID].Color.Alpha#*255)
 		Offset=VertexOffset+(VertexID*VertexSize)+TangentOffset
 		Voxel_SetMemblockVec3(MemblockID,Offset,Object.Vertex[VertexID].Tangent.X#,Object.Vertex[VertexID].Tangent.Y#,Object.Vertex[VertexID].Tangent.Z#)
 		Offset=VertexOffset+(VertexID*VertexSize)+BitangentOffset
@@ -506,7 +704,7 @@ function Voxel_SetMemblockVec2(MemblockID,Offset,u#,v#)
 	SetMemblockFloat(MemblockID,Offset+4,v#)
 endfunction
 
-function SetMemblockByte4(MemblockID,Offset,r,g,b,a)
+function Voxel_SetMemblockByte4(MemblockID,Offset,r,g,b,a)
 	SetMemblockByte(MemblockID,Offset,r)
 	SetMemblockByte(MemblockID,Offset+1,g)
 	SetMemblockByte(MemblockID,Offset+2,b)
@@ -519,3 +717,8 @@ function Voxel_SetMemblockInt4(MemblockID,Offset,x#,y#,z#,w#)
 	SetMemblockInt(MemblockID,Offset+8,z#)
 	SetMemblockInt(MemblockID,Offset+12,w#)
 endfunction
+
+function Voxel_Clamp(Value#,Min#,Max#)
+	if Value#>Max# then Value#=Max#
+	if Value#<Min# then Value#=Min#
+endfunction Value#

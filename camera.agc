@@ -1,16 +1,4 @@
-function ControlCamera()
-	#constant KEY_ESC				27
-	#constant KEY_PAGEUP			33
-	#constant KEY_PAGEDOWN		34
-	#constant KEY_LEFT			37
-	#constant KEY_UP				38
-	#constant KEY_RIGHT			39
-	#constant KEY_DOWN			40
-	#constant KEY_END				35
-	#constant KEY_HOME			36
-	#constant KEY_SHIFT			16
-	#constant KEY_S				83
-	
+function ControlCamera()	
 	local speed# as float
 	local JoystickSize# as float
 
@@ -29,7 +17,7 @@ function ControlCamera()
 	global VelocityY#
 
 	speed#=20*GetFrameTime()
-	if GetRawKeyState(KEY_SHIFT) then speed#=50*GetFrameTime()
+	if GetRawKeyState(16) then speed#=50*GetFrameTime()
 	VelocityZ#=CurveValue(VelocityZ#,0,10.0)
 	VelocityX#=CurveValue(VelocityX#,0,10.0)
 	VelocityY#=CurveValue(VelocityY#,0,10.0)
@@ -57,14 +45,14 @@ function ControlCamera()
 	PointerX#=GetPointerX()
 	PointerY#=GetPointerY()
 
-    if GetPointerPressed()=1
+    if GetRawMouseMiddlePressed()=1
         PointerStartX#=PointerX#
         PointerStartY#=PointerY#
 		CameraAngleX#=GetCameraAngleX(1)
 		CameraAngleY#=GetCameraAngleY(1)
     endif
 
-    if GetPointerState()=1
+    if GetRawMouseMiddleState()=1
         PointerDragX#=(PointerX#-PointerStartX#)
         PointerDragY#=(PointerY#-PointerStartY#)
     endif
