@@ -81,9 +81,7 @@ endtype
 // Functions
 
 // Initialise the Voxel Engine
-function Voxel_InitWorld(Subimages ref as SubimageData[],World ref as WorldData[][][])
-	SetDefaultWrapU(1)
-	SetDefaultWrapV(1)
+function Voxel_InitWorld(FaceImages ref as FaceimageData,World ref as WorldData[][][])
 	AtlasImageID=LoadImage("terrain.png")
 	
 	ChunkEndX=trunc(World.length/ChunkSize)
@@ -105,7 +103,7 @@ function Voxel_InitWorld(Subimages ref as SubimageData[],World ref as WorldData[
 				for X=StartX to EndX
 					for Y=StartY to EndY
 						for Z=StartZ to EndZ
-							Voxel_GenerateCubeFaces(Object,Subimages,World,X,Y,Z)
+							Voxel_GenerateCubeFaces(Object,FaceImages,World,X,Y,Z)
 						next Z
 					next Y
 				next X
@@ -163,13 +161,13 @@ function Voxel_ReadFaceimageIdices(File$,FaceIndices ref as FaceIndexData[])
 	CloseFile(FileID)
 endfunction
 
-function Voxel_RemoveCubeFromObject(ObjectID,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
+function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
 	X=Voxel_Clamp(X,1,World.length-1)
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
 	World[X,Y,Z].CubeType=0
-	Voxel_UpdateObject(ObjectID,Subimages,World)
+	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)
 	ChunkY=round((Y-1)/ChunkSize)
@@ -183,37 +181,37 @@ function Voxel_RemoveCubeFromObject(ObjectID,Subimages ref as SubimageData[],Wor
 
 	if CubeX=16
 		NeighbourObjectID=1+(ChunkX+1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeX=1
 		NeighbourObjectID=1+(ChunkX-1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeY=16
 		NeighbourObjectID=1+ChunkX+(ChunkY+1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeY=1
 		NeighbourObjectID=1+ChunkX+(ChunkY-1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeZ=16
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ+1)*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeZ=1
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ-1)*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 endfunction
 
-function Voxel_AddCubeToObject(ObjectID,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
+function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
 	X=Voxel_Clamp(X,1,World.length-1)
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
 	World[X,Y,Z].CubeType=1
-	Voxel_UpdateObject(ObjectID,Subimages,World)
+	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)
 	ChunkY=round((Y-1)/ChunkSize)
@@ -227,31 +225,31 @@ function Voxel_AddCubeToObject(ObjectID,Subimages ref as SubimageData[],World re
 
 	if CubeX=16
 		NeighbourObjectID=1+(ChunkX+1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeX=1
 		NeighbourObjectID=1+(ChunkX-1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeY=16
 		NeighbourObjectID=1+ChunkX+(ChunkY+1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeY=1
 		NeighbourObjectID=1+ChunkX+(ChunkY-1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeZ=16
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ+1)*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 	if CubeZ=1
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ-1)*ChunkEndY*ChunkEndZ
-		Voxel_UpdateObject(NeighbourObjectID,Subimages,World)
+		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
 endfunction
 
-function Voxel_UpdateObject(ObjectID,Subimages ref as SubimageData[],World ref as WorldData[][][])
+function Voxel_UpdateObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][])
 	if GetObjectExists(ObjectID)
 		ObjectX=GetObjectX(ObjectID)
 		ObjectY=GetObjectY(ObjectID)
@@ -268,7 +266,7 @@ function Voxel_UpdateObject(ObjectID,Subimages ref as SubimageData[],World ref a
 		for X=StartX to EndX
 			for Y=StartY to EndY
 				for Z=StartZ to EndZ
-					Voxel_GenerateCubeFaces(Object,Subimages,World,X,Y,Z)
+					Voxel_GenerateCubeFaces(Object,Faceimages,World,X,Y,Z)
 				next Z
 			next Y
 		next X
@@ -282,25 +280,18 @@ function Voxel_UpdateObject(ObjectID,Subimages ref as SubimageData[],World ref a
 	endif
 endfunction
 
-function Voxel_GenerateCubeFaces(Object ref as ObjectData,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z)
+function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
 	if World[X,Y,Z].CubeType>0
 		local TempSubimages as SubimageData[5]
-		if World[X,Y,Z].CubeType=1
-			TempSubimages[0]=Subimages[2]
-			TempSubimages[1]=Subimages[2]
-			TempSubimages[2]=Subimages[2]
-			TempSubimages[3]=Subimages[2]
-			TempSubimages[4]=Subimages[0]
-			TempSubimages[5]=Subimages[0]
-		endif	
-		if World[X,Y,Z].CubeType=2
-			TempSubimages[0]=Subimages[16]
-			TempSubimages[1]=Subimages[16]
-			TempSubimages[2]=Subimages[16]
-			TempSubimages[3]=Subimages[16]
-			TempSubimages[4]=Subimages[16]
-			TempSubimages[5]=Subimages[16]
-		endif		
+		
+		CubeType=World[X,Y,Z].CubeType-1
+		TempSubimages[0]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].FrontID]
+		TempSubimages[1]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].BackID]
+		TempSubimages[2]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].RightID]
+		TempSubimages[3]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].LeftID]
+		TempSubimages[4]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].UpID]
+		TempSubimages[5]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].DownID]
+		
 		CubeX=1+Mod(X-1,ChunkSize)
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
