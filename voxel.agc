@@ -160,6 +160,7 @@ function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,Wor
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
+	BlockType=World[X,Y,Z].BlockType
 	World[X,Y,Z].BlockType=0
 	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
@@ -197,14 +198,14 @@ function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,Wor
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ-1)*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
-endfunction
+endfunction BlockType
 
-function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
+function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z,BlockType)
 	X=Voxel_Clamp(X,1,World.length-1)
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
-	World[X,Y,Z].BlockType=1
+	World[X,Y,Z].BlockType=BlockType
 	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)

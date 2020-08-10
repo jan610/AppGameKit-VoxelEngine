@@ -35,7 +35,7 @@ SetDefaultMagFilter(0)
 global Faceimages as FaceimageData
 Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
 
-World as WorldData[257,17,257]
+World as WorldData[129,17,129]
 
 Noise_Init()
 Noise_Seed(257)
@@ -48,31 +48,28 @@ Noise_Seed(257)
 //~	next Y
 //~next X
 
-freq#=32.0
+freq1#=32.0
+freq2#=12.0
+freq3#=4.0
 for X=1 to World.length-1
 	for Y=1 to World[0].length-1
 		for Z=1 to World[0,0].length-1
-			Value#=abs(Noise_Perlin2(X/freq#,Z/freq#))*World[0].length // This could become an array at some point
-			MaxGrass=(World[0].length*0.6)+Value#/2.5
-			MaxDirt=(World[0].length*0.54)+Value#/2.5
-			MaxStone=(World[0].length*0.4)+Value#/2.5
+			ValueTerrain#=abs(Noise_Perlin2(X/freq1#,Z/freq1#))*World[0].length // This could become an array at some point
+			MaxGrass=(World[0].length*0.6)+ValueTerrain#/2.5
+			MaxDirt=(World[0].length*0.54)+ValueTerrain#/2.5
+			MaxStone=(World[0].length*0.4)+ValueTerrain#/2.5
 			if Y>MaxDirt and Y<=MaxGrass
 				World[X,Y,Z].BlockType=1
 			elseif Y>MaxStone and Y<=MaxDirt
 				World[X,Y,Z].BlockType=3
 			elseif Y<=MaxStone
 				World[X,Y,Z].BlockType=2
+				
+				ValueIron#=abs(Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#))
+				if ValueIron#>0.65 then World[X,Y,Z].BlockType=4
+				ValueCaves#=abs(Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#))
+				if ValueCaves#>0.55 then World[X,Y,Z].BlockType=0
 			endif
-		next Z
-	next Y
-next X
-
-freq#=12
-for X=1 to World.length-1
-	for Y=1 to World[0].length-1
-		for Z=1 to World[0,0].length-1
-			Value#=abs(Noise_Perlin3(X/freq#,Y/freq#,Z/freq#))
-			if Value#>0.4 then World[X,Y,Z].BlockType=0
 		next Z
 	next Y
 next X
@@ -91,6 +88,7 @@ do
 //~	print(str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
 //~	print(str(ChunkEndX)+","+str(ChunkEndY)+","+str(ChunkEndZ))
 	print(str(HitObjectID)+"/"+str(NeighbourObjectID))
+	print(BlockType)
     
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
@@ -143,6 +141,9 @@ do
 		CubeZ=1+Mod(Z-1,ChunkSize)
 		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndX*ChunkEndZ
 	endif
+	
+	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
+	Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
     
     if GetRawMouseLeftPressed()=1
     	HitObjectID=ObjectRayCast(0,GetCameraX(1),GetCameraY(1),GetCameraZ(1),PointerX#*9999,PointerY#*9999,PointerZ#*9999)
@@ -159,7 +160,7 @@ do
 			HitGridY=round(HitPositionY#+HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#+HitNormalZ#*0.5)
 			
-			Voxel_AddCubeToObject(HitObjectID,Faceimages,World,HitGridX,HitGridY,HitGridZ)
+			Voxel_AddCubeToObject(HitObjectID,Faceimages,World,HitGridX,HitGridY,HitGridZ,BlockType)
 		endif
 	endif
     
@@ -178,7 +179,7 @@ do
 			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
 			
-			Voxel_RemoveCubeFromObject(HitObjectID,Faceimages,World,HitGridX,HitGridY,HitGridZ)
+			BlockType=Voxel_RemoveCubeFromObject(HitObjectID,Faceimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
     
