@@ -24,17 +24,11 @@ type RGBAData
 	Alpha#
 endtype
 
-type BoneData
-	Weights as Vec4Data
-	Idices as Vec4Data
-endtype
-
 type VertexData
 	Pos as Vec3Data
 	UV as Vec2Data
 	Color as RGBAData
 	Normal as Vec3Data
-	Bone as BoneData
 	Tangent as Vec3Data
 	Bitangent as Vec3Data
 endtype
@@ -52,7 +46,7 @@ endtype
 #constant FaceDown	6
 
 type WorldData
-	CubeType
+	BlockType
 endtype
 
 type SubimageData
@@ -100,9 +94,9 @@ function Voxel_InitWorld(FaceImages ref as FaceimageData,World ref as WorldData[
 				StartZ=ChunkZ*ChunkSize
 				EndZ=StartZ+ChunkSize
 				
-				for X=StartX to EndX
-					for Y=StartY to EndY
-						for Z=StartZ to EndZ
+				for X=StartX+1 to EndX
+					for Y=StartY+1 to EndY
+						for Z=StartZ+1 to EndZ
 							Voxel_GenerateCubeFaces(Object,FaceImages,World,X,Y,Z)
 						next Z
 					next Y
@@ -166,7 +160,7 @@ function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,Wor
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
-	World[X,Y,Z].CubeType=0
+	World[X,Y,Z].BlockType=0
 	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)
@@ -210,7 +204,7 @@ function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World re
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
-	World[X,Y,Z].CubeType=1
+	World[X,Y,Z].BlockType=1
 	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)
@@ -263,9 +257,9 @@ function Voxel_UpdateObject(ObjectID,Faceimages ref as FaceimageData,World ref a
 		EndZ=StartZ+ChunkSize
 		
 		local Object as ObjectData
-		for X=StartX to EndX
-			for Y=StartY to EndY
-				for Z=StartZ to EndZ
+		for X=StartX+1 to EndX
+			for Y=StartY+1 to EndY
+				for Z=StartZ+1 to EndZ
 					Voxel_GenerateCubeFaces(Object,Faceimages,World,X,Y,Z)
 				next Z
 			next Y
@@ -281,36 +275,36 @@ function Voxel_UpdateObject(ObjectID,Faceimages ref as FaceimageData,World ref a
 endfunction
 
 function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
-	if World[X,Y,Z].CubeType>0
+	if World[X,Y,Z].BlockType>0
 		local TempSubimages as SubimageData[5]
 		
-		CubeType=World[X,Y,Z].CubeType-1
-		TempSubimages[0]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].FrontID]
-		TempSubimages[1]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].BackID]
-		TempSubimages[2]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].RightID]
-		TempSubimages[3]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].LeftID]
-		TempSubimages[4]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].UpID]
-		TempSubimages[5]=Faceimages.Subimages[Faceimages.FaceimageIndices[CubeType].DownID]
+		BlockType=World[X,Y,Z].BlockType-1
+		TempSubimages[0]=Faceimages.Subimages[Faceimages.FaceimageIndices[BlockType].FrontID]
+		TempSubimages[1]=Faceimages.Subimages[Faceimages.FaceimageIndices[BlockType].BackID]
+		TempSubimages[2]=Faceimages.Subimages[Faceimages.FaceimageIndices[BlockType].RightID]
+		TempSubimages[3]=Faceimages.Subimages[Faceimages.FaceimageIndices[BlockType].LeftID]
+		TempSubimages[4]=Faceimages.Subimages[Faceimages.FaceimageIndices[BlockType].UpID]
+		TempSubimages[5]=Faceimages.Subimages[Faceimages.FaceimageIndices[BlockType].DownID]
 		
 		CubeX=1+Mod(X-1,ChunkSize)
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
-		if World[X,Y,Z+1].CubeType=0
+		if World[X,Y,Z+1].BlockType=0
 			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceFront)
 		endif
-		if World[X,Y,Z-1].CubeType=0
+		if World[X,Y,Z-1].BlockType=0
 			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceBack)
 		endif
-		if World[X,Y+1,Z].CubeType=0
+		if World[X,Y+1,Z].BlockType=0
 			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceUp)
 		endif
-		if World[X,Y-1,Z].CubeType=0
+		if World[X,Y-1,Z].BlockType=0
 			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceDown)
 		endif
-		if World[X+1,Y,Z].CubeType=0
+		if World[X+1,Y,Z].BlockType=0
 			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceRight)
 		endif
-		if World[X-1,Y,Z].CubeType=0
+		if World[X-1,Y,Z].BlockType=0
 			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceLeft)
 		endif
 	endif

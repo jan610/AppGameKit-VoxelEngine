@@ -25,11 +25,9 @@ SetCameraRange(1,0.5,120)
 SetFogMode(1)
 SetFogRange(100,120)
 SetSkyBoxVisible(1)
+SetGenerateMipmaps(1)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
-SetDefaultWrapU(1)
-SetDefaultWrapU(1)
-SetGenerateMipmaps(0)
 
 //~local Subimages as SubimageData[]
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
@@ -37,7 +35,7 @@ SetGenerateMipmaps(0)
 global Faceimages as FaceimageData
 Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
 
-World as WorldData[256,17,256]
+World as WorldData[257,17,257]
 
 Noise_Init()
 Noise_Seed(257)
@@ -50,20 +48,20 @@ Noise_Seed(257)
 //~	next Y
 //~next X
 
-freq#=12.0
+freq#=32.0
 for X=1 to World.length-1
-	for Y=1 to World[0].length
+	for Y=1 to World[0].length-1
 		for Z=1 to World[0,0].length-1
 			Value#=abs(Noise_Perlin2(X/freq#,Z/freq#))*World[0].length // This could become an array at some point
-			MaxGrass=(World[0].length*0.75)+Value#/4.0
-			MaxDirt=(World[0].length*0.65)+Value#/4.0
-			MaxStone=(World[0].length*0.5)+Value#/4.0
+			MaxGrass=(World[0].length*0.6)+Value#/2.5
+			MaxDirt=(World[0].length*0.54)+Value#/2.5
+			MaxStone=(World[0].length*0.4)+Value#/2.5
 			if Y>MaxDirt and Y<=MaxGrass
-				World[X,Y,Z].CubeType=1
+				World[X,Y,Z].BlockType=1
 			elseif Y>MaxStone and Y<=MaxDirt
-				World[X,Y,Z].CubeType=3
+				World[X,Y,Z].BlockType=3
 			elseif Y<=MaxStone
-				World[X,Y,Z].CubeType=2
+				World[X,Y,Z].BlockType=2
 			endif
 		next Z
 	next Y
@@ -74,7 +72,7 @@ for X=1 to World.length-1
 	for Y=1 to World[0].length-1
 		for Z=1 to World[0,0].length-1
 			Value#=abs(Noise_Perlin3(X/freq#,Y/freq#,Z/freq#))
-			if Value#>0.4 then World[X,Y,Z].CubeType=0
+			if Value#>0.4 then World[X,Y,Z].BlockType=0
 		next Z
 	next Y
 next X
@@ -89,7 +87,7 @@ SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 do
     Print("FPS: "+str(ScreenFPS(),0))
     print(str(HitGridX)+","+str(HitGridY)+","+str(HitGridZ))
-//~    print(str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+//~ print(str(CubeX)+","+str(CubeY)+","+str(CubeZ))
 //~	print(str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
 //~	print(str(ChunkEndX)+","+str(ChunkEndY)+","+str(ChunkEndZ))
 	print(str(HitObjectID)+"/"+str(NeighbourObjectID))
@@ -143,7 +141,7 @@ do
 		CubeX=1+Mod(X-1,ChunkSize)
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
-		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndZ*ChunkEndZ
+		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndX*ChunkEndZ
 	endif
     
     if GetRawMouseLeftPressed()=1
