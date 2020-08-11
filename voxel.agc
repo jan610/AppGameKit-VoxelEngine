@@ -102,17 +102,19 @@ function Voxel_InitWorld(FaceImages ref as FaceimageData,World ref as WorldData[
 					next Y
 				next X
 				
-				MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length)
-				Voxel_WriteMeshMemblock(MemblockID,Object)
-				Object.Index.length=-1
-				Object.Vertex.length=-1
-				
-				ObjectID=1+ChunkX+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
-				CreateObjectFromMeshMemblock(ObjectID,MemblockID)
-				DeleteMemblock(MemblockID)
-				
-				SetObjectPosition(ObjectID,ChunkX*ChunkSize,ChunkY*ChunkSize,ChunkZ*ChunkSize)
-				SetObjectImage(ObjectID,AtlasImageID,0)
+				if Object.Vertex.length>1
+					MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
+					Voxel_WriteMeshMemblock(MemblockID,Object)
+					Object.Index.length=-1
+					Object.Vertex.length=-1
+					
+					ObjectID=1+ChunkX+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
+					CreateObjectFromMeshMemblock(ObjectID,MemblockID)
+					DeleteMemblock(MemblockID)
+					
+					SetObjectPosition(ObjectID,ChunkX*ChunkSize,ChunkY*ChunkSize,ChunkZ*ChunkSize)
+					SetObjectImage(ObjectID,AtlasImageID,0)
+				endif
 			next ChunkZ
 		next ChunkY
 	next ChunkX
@@ -174,7 +176,7 @@ function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,Wor
 	CubeY=1+Mod(Y-1,ChunkSize)
 	CubeZ=1+Mod(Z-1,ChunkSize)
 
-	if CubeX=16
+	if CubeX=ChunkSize
 		NeighbourObjectID=1+(ChunkX+1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
@@ -182,7 +184,7 @@ function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,Wor
 		NeighbourObjectID=1+(ChunkX-1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
-	if CubeY=16
+	if CubeY=ChunkSize
 		NeighbourObjectID=1+ChunkX+(ChunkY+1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
@@ -190,7 +192,7 @@ function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,Wor
 		NeighbourObjectID=1+ChunkX+(ChunkY-1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
-	if CubeZ=16
+	if CubeZ=ChunkSize
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ+1)*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
@@ -217,8 +219,8 @@ function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World re
 	CubeX=1+Mod(X-1,ChunkSize)
 	CubeY=1+Mod(Y-1,ChunkSize)
 	CubeZ=1+Mod(Z-1,ChunkSize)
-
-	if CubeX=16
+	
+	if CubeX=ChunkSize
 		NeighbourObjectID=1+(ChunkX+1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
@@ -226,7 +228,7 @@ function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World re
 		NeighbourObjectID=1+(ChunkX-1)+ChunkY*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
-	if CubeY=16
+	if CubeY=ChunkSize
 		NeighbourObjectID=1+ChunkX+(ChunkY+1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
@@ -234,7 +236,7 @@ function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World re
 		NeighbourObjectID=1+ChunkX+(ChunkY-1)*ChunkEndY+ChunkZ*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
-	if CubeZ=16
+	if CubeZ=ChunkSize
 		NeighbourObjectID=1+ChunkX+ChunkY*ChunkEndY+(ChunkZ+1)*ChunkEndY*ChunkEndZ
 		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
 	endif
@@ -266,12 +268,14 @@ function Voxel_UpdateObject(ObjectID,Faceimages ref as FaceimageData,World ref a
 			next Y
 		next X
 		
-		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length)
-		Voxel_WriteMeshMemblock(MemblockID,Object)
-		SetObjectMeshFromMemblock(ObjectID,1,MemblockID)
-		DeleteMemblock(MemblockID)
-		Object.Index.length=-1
-		Object.Vertex.length=-1
+		if Object.Vertex.length>1
+			MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
+			Voxel_WriteMeshMemblock(MemblockID,Object)
+			SetObjectMeshFromMemblock(ObjectID,1,MemblockID)
+			DeleteMemblock(MemblockID)
+			Object.Index.length=-1
+			Object.Vertex.length=-1
+		endif
 	endif
 endfunction
 
@@ -329,7 +333,7 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceNormal(TempVertex[0],0,0,1)
 			Voxel_SetObjectFaceNormal(TempVertex[1],0,0,1)
 			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
-			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
+			Voxel_SetObjectFaceNormal(TempVertex[3],0,0,1)
 			
 			Left#=Subimages[0].X/TextureSize#
 			Top#=Subimages[0].Y/TextureSize#
@@ -537,12 +541,13 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 	Object.Vertex.insert(TempVertex[2])
 	Object.Vertex.insert(TempVertex[3])
 	
-	Object.Index.insert(Object.Vertex.length-3)
-	Object.Index.insert(Object.Vertex.length-2)
-	Object.Index.insert(Object.Vertex.length-1)
-	Object.Index.insert(Object.Vertex.length-1)
-	Object.Index.insert(Object.Vertex.length)
-	Object.Index.insert(Object.Vertex.length-3)
+	VertexID=Object.Vertex.length-3
+	Object.Index.insert(VertexID+0)
+	Object.Index.insert(VertexID+1)
+	Object.Index.insert(VertexID+2)
+	Object.Index.insert(VertexID+2)
+	Object.Index.insert(VertexID+3)
+	Object.Index.insert(VertexID+0)
 endfunction
 
 function Voxel_SetObjectFacePosition(Vertex ref as VertexData,X#,Y#,Z#)
@@ -583,8 +588,7 @@ endfunction
 
 // Generate the mesh header for a simple one sided plane
 // Position,Normal,UV,Color,Tangent and Bitangent Data
-function Voxel_CreateMeshMemblock(VertexCount)
-	IndexCount=6*trunc(1+VertexCount/4) // You can start finding the Bug Here
+function Voxel_CreateMeshMemblock(VertexCount,IndexCount)
 	Attributes=5
 //~	VertexSize=60
 	VertexSize=3*4+3*4+2*4+3*4+3*4
@@ -650,8 +654,7 @@ function Voxel_CreateMeshMemblock(VertexCount)
 endfunction MemblockID
 
 function Voxel_WriteMeshMemblock(MemblockID,Object ref as ObjectData)
-	VertexCount=Object.Vertex.length
-	IndexCount=Object.Index.length
+	VertexCount=Object.Vertex.length+1
 //~	VertexSize=60
 	VertexSize=3*4+3*4+2*4+3*4+3*4
 //~	VertexOffset=100

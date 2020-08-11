@@ -43,7 +43,7 @@ Noise_Seed(257)
 //~for X=1 to World.length-1
 //~	for Y=1 to World[0].length-1
 //~		for Z=1 to World[0,0].length-1
-//~			World[X,Y,Z].CubeType=1
+//~			World[X,Y,Z].BlockType=1
 //~		next Z
 //~	next Y
 //~next X
