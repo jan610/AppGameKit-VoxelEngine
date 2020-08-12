@@ -75,7 +75,7 @@ endtype
 // Functions
 
 // Initialise the Voxel Engine
-function Voxel_InitWorld(FaceImages ref as FaceimageData,World ref as WorldData[][][])
+function Voxel_CreateObjects(FaceImages ref as FaceimageData,World ref as WorldData[][][],MinX,MinY,MinZ,MaxX,MaxY,MaxZ)
 	AtlasImageID=LoadImage("terrain.png")
 	
 	ChunkEndX=trunc(World.length/ChunkSize)
@@ -84,9 +84,9 @@ function Voxel_InitWorld(FaceImages ref as FaceimageData,World ref as WorldData[
 	
 	local Object as ObjectData
 	
-	for ChunkX=0 to ChunkEndX-1
-		for ChunkY=0 to ChunkEndY-1
-			for ChunkZ=0 to ChunkEndZ-1
+	for ChunkX=MinX to MaxX
+		for ChunkY=MinY to MaxY
+			for ChunkZ=MinZ to MaxZ
 				StartX=ChunkX*ChunkSize
 				EndX=StartX+ChunkSize
 				StartY=ChunkY*ChunkSize
@@ -295,28 +295,142 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
 		if World[X,Y,Z+1].BlockType=0
-			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceFront)
+			side1=(World[X,Y+1,Z+1].BlockType=0)
+			side2=(World[X-1,Y,Z+1].BlockType=0)
+			corner=(World[X-1,Y+1,Z+1].BlockType=0)
+			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y+1,Z+1].BlockType=0)
+			side2=(World[X+1,Y,Z+1].BlockType=0)
+			corner=(World[X+1,Y+1,Z+1].BlockType=0)
+			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+			side1=(World[X,Y-1,Z+1].BlockType=0)
+//~			side2=(World[X+1,Y,Z+1].BlockType=0)
+			corner=(World[X+1,Y-1,Z+1].BlockType=0)
+			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y-1,Z+1].BlockType=0)
+			side2=(World[X-1,Y,Z+1].BlockType=0)
+			corner=(World[X-1,Y-1,Z+1].BlockType=0)
+			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			Voxel_AddFaceToObject(Object,TempSubimages,World,CubeX,CubeY,CubeZ,FaceFront,AO0,AO1,AO2,AO3)
 		endif
 		if World[X,Y,Z-1].BlockType=0
-			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceBack)
-		endif
-		if World[X,Y+1,Z].BlockType=0
-			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceUp)
-		endif
-		if World[X,Y-1,Z].BlockType=0
-			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceDown)
+			side1=(World[X,Y+1,Z-1].BlockType=0)
+			side2=(World[X+1,Y,Z-1].BlockType=0)
+			corner=(World[X+1,Y+1,Z-1].BlockType=0)
+			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y+1,Z-1].BlockType=0)
+			side2=(World[X-1,Y,Z-1].BlockType=0)
+			corner=(World[X-1,Y+1,Z-1].BlockType=0)
+			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+			side1=(World[X,Y-1,Z-1].BlockType=0)
+//~			side2=(World[X-1,Y,Z-1].BlockType=0)
+			corner=(World[X-1,Y-1,Z-1].BlockType=0)
+			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y-1,Z-1].BlockType=0)
+			side2=(World[X+1,Y,Z-1].BlockType=0)
+			corner=(World[X+1,Y-1,Z-1].BlockType=0)
+			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			Voxel_AddFaceToObject(Object,TempSubimages,World,CubeX,CubeY,CubeZ,FaceBack,AO0,AO1,AO2,AO3)
 		endif
 		if World[X+1,Y,Z].BlockType=0
-			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceRight)
+			side1=(World[X+1,Y+1,Z].BlockType=0)
+			side2=(World[X+1,Y,Z+1].BlockType=0)
+			corner=(World[X+1,Y+1,Z+1].BlockType=0)
+			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X+1,Y+1,Z].BlockType=0)
+			side2=(World[X+1,Y,Z-1].BlockType=0)
+			corner=(World[X+1,Y+1,Z-1].BlockType=0)
+			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+			side1=(World[X+1,Y-1,Z].BlockType=0)
+//~			side2=(World[X+1,Y,Z-1].BlockType=0)
+			corner=(World[X+1,Y-1,Z-1].BlockType=0)
+			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X+1,Y-1,Z].BlockType=0)
+			side2=(World[X+1,Y,Z+1].BlockType=0)
+			corner=(World[X+1,Y-1,Z+1].BlockType=0)
+			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			Voxel_AddFaceToObject(Object,TempSubimages,World,CubeX,CubeY,CubeZ,FaceRight,AO0,AO1,AO2,AO3)
 		endif
 		if World[X-1,Y,Z].BlockType=0
-			Voxel_AddFaceToObject(Object,TempSubimages,CubeX,CubeY,CubeZ,FaceLeft)
+			side1=(World[X-1,Y+1,Z].BlockType=0)
+			side2=(World[X-1,Y,Z-1].BlockType=0)
+			corner=(World[X-1,Y+1,Z-1].BlockType=0)
+			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X-1,Y+1,Z].BlockType=0)
+			side2=(World[X-1,Y,Z+1].BlockType=0)
+			corner=(World[X-1,Y+1,Z+1].BlockType=0)
+			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+			side1=(World[X-1,Y-1,Z].BlockType=0)
+//~			side2=(World[X-1,Y,Z+1].BlockType=0)
+			corner=(World[X-1,Y-1,Z+1].BlockType=0)
+			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X-1,Y-1,Z].BlockType=0)
+			side2=(World[X-1,Y,Z-1].BlockType=0)
+			corner=(World[X-1,Y-1,Z-1].BlockType=0)
+			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			Voxel_AddFaceToObject(Object,TempSubimages,World,CubeX,CubeY,CubeZ,FaceLeft,AO0,AO1,AO2,AO3)
+		endif
+		if World[X,Y+1,Z].BlockType=0
+			side1=(World[X,Y+1,Z+1].BlockType=0)
+			side2=(World[X+1,Y+1,Z].BlockType=0)
+			corner=(World[X+1,Y+1,Z+1].BlockType=0)
+			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y+1,Z+1].BlockType=0)
+			side2=(World[X-1,Y+1,Z].BlockType=0)
+			corner=(World[X-1,Y+1,Z+1].BlockType=0)
+			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+			side1=(World[X,Y+1,Z-1].BlockType=0)
+//~			side2=(World[X-1,Y+1,Z].BlockType=0)
+			corner=(World[X-1,Y+1,Z-1].BlockType=0)
+			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y+1,Z-1].BlockType=0)
+			side2=(World[X+1,Y+1,Z].BlockType=0)
+			corner=(World[X+1,Y+1,Z-1].BlockType=0)
+			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			Voxel_AddFaceToObject(Object,TempSubimages,World,CubeX,CubeY,CubeZ,FaceUp,AO0,AO1,AO2,AO3)
+		endif
+		if World[X,Y-1,Z].BlockType=0
+			side1=(World[X,Y-1,Z+1].BlockType=0)
+			side2=(World[X-1,Y-1,Z].BlockType=0)
+			corner=(World[X-1,Y-1,Z+1].BlockType=0)
+			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y-1,Z+1].BlockType=0)
+			side2=(World[X+1,Y-1,Z].BlockType=0)
+			corner=(World[X+1,Y-1,Z+1].BlockType=0)
+			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+			side1=(World[X,Y-1,Z-1].BlockType=0)
+//~			side2=(World[X+1,Y-1,Z].BlockType=0)
+			corner=(World[X+1,Y-1,Z-1].BlockType=0)
+			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			
+//~			side1=(World[X,Y-1,Z-1].BlockType=0)
+			side2=(World[X-1,Y-1,Z].BlockType=0)
+			corner=(World[X-1,Y-1,Z-1].BlockType=0)
+			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
+			Voxel_AddFaceToObject(Object,TempSubimages,World,CubeX,CubeY,CubeZ,FaceDown,AO0,AO1,AO2,AO3)
 		endif
 	endif
 endfunction
 
 // Populate the MeshObject with Data
-function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as SubimageData[],X,Y,Z,FaceDir)
+function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as SubimageData[],World ref as WorldData[][][],X,Y,Z,FaceDir,AO0,AO1,AO2,AO3)
 	TempVertex as VertexData[3]
 	HalfFaceSize#=0.5	
 	TileCount=16
@@ -344,10 +458,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
 			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],255,255,255,255)
+			Voxel_SetObjectFaceColor(TempVertex[0],255-AO0,255-AO0,255-AO0,255)
+			Voxel_SetObjectFaceColor(TempVertex[1],255-AO1,255-AO1,255-AO1,255)
+			Voxel_SetObjectFaceColor(TempVertex[2],255-AO2,255-AO2,255-AO2,255)
+			Voxel_SetObjectFaceColor(TempVertex[3],255-AO3,255-AO3,255-AO3,255)
 			
 			Voxel_SetObjectFaceTangent(TempVertex[0],-1,0,0)
 			Voxel_SetObjectFaceTangent(TempVertex[1],-1,0,0)
@@ -379,50 +493,15 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
 			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],255,255,255,255)
+			Voxel_SetObjectFaceColor(TempVertex[0],255-AO0,255-AO0,255-AO0,255)
+			Voxel_SetObjectFaceColor(TempVertex[1],255-AO1,255-AO1,255-AO1,255)
+			Voxel_SetObjectFaceColor(TempVertex[2],255-AO2,255-AO2,255-AO2,255)
+			Voxel_SetObjectFaceColor(TempVertex[3],255-AO3,255-AO3,255-AO3,255)
 		
 			Voxel_SetObjectFaceTangent(TempVertex[0],1,0,0)
 			Voxel_SetObjectFaceTangent(TempVertex[1],1,0,0)
 			Voxel_SetObjectFaceTangent(TempVertex[2],1,0,0)
 			Voxel_SetObjectFaceTangent(TempVertex[3],1,0,0)
-			
-			Voxel_SetObjectFaceBitangent(TempVertex[0],0,1,0)
-			Voxel_SetObjectFaceBitangent(TempVertex[1],0,1,0)
-			Voxel_SetObjectFaceBitangent(TempVertex[2],0,1,0)
-			Voxel_SetObjectFaceBitangent(TempVertex[3],0,1,0)
-		endcase
-		case FaceLeft
-			Voxel_SetObjectFacePosition(TempVertex[0],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
-			
-			Voxel_SetObjectFaceNormal(TempVertex[0],-1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[1],-1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[2],-1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[3],-1,0,0)
-			
-			Left#=Subimages[2].X/TextureSize#
-			Top#=Subimages[2].Y/TextureSize#
-			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
-			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
-			
-			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],255,255,255,255)
-		
-			Voxel_SetObjectFaceTangent(TempVertex[0],0,0,-1)
-			Voxel_SetObjectFaceTangent(TempVertex[1],0,0,-1)
-			Voxel_SetObjectFaceTangent(TempVertex[2],0,0,-1)
-			Voxel_SetObjectFaceTangent(TempVertex[3],0,0,-1)
 			
 			Voxel_SetObjectFaceBitangent(TempVertex[0],0,1,0)
 			Voxel_SetObjectFaceBitangent(TempVertex[1],0,1,0)
@@ -449,15 +528,50 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
 			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],255,255,255,255)
+			Voxel_SetObjectFaceColor(TempVertex[0],255-AO0,255-AO0,255-AO0,255)
+			Voxel_SetObjectFaceColor(TempVertex[1],255-AO1,255-AO1,255-AO1,255)
+			Voxel_SetObjectFaceColor(TempVertex[2],255-AO2,255-AO2,255-AO2,255)
+			Voxel_SetObjectFaceColor(TempVertex[3],255-AO3,255-AO3,255-AO3,255)
 		
 			Voxel_SetObjectFaceTangent(TempVertex[0],0,0,1)
 			Voxel_SetObjectFaceTangent(TempVertex[1],0,0,1)
 			Voxel_SetObjectFaceTangent(TempVertex[2],0,0,1)
 			Voxel_SetObjectFaceTangent(TempVertex[3],0,0,1)
+			
+			Voxel_SetObjectFaceBitangent(TempVertex[0],0,1,0)
+			Voxel_SetObjectFaceBitangent(TempVertex[1],0,1,0)
+			Voxel_SetObjectFaceBitangent(TempVertex[2],0,1,0)
+			Voxel_SetObjectFaceBitangent(TempVertex[3],0,1,0)
+		endcase
+		case FaceLeft
+			Voxel_SetObjectFacePosition(TempVertex[0],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(TempVertex[2],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			
+			Voxel_SetObjectFaceNormal(TempVertex[0],-1,0,0)
+			Voxel_SetObjectFaceNormal(TempVertex[1],-1,0,0)
+			Voxel_SetObjectFaceNormal(TempVertex[2],-1,0,0)
+			Voxel_SetObjectFaceNormal(TempVertex[3],-1,0,0)
+			
+			Left#=Subimages[2].X/TextureSize#
+			Top#=Subimages[2].Y/TextureSize#
+			Right#=(Subimages[2].X+Subimages[2].Width)/TextureSize#
+			Bottom#=(Subimages[2].Y+Subimages[2].Height)/TextureSize#
+			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
+			
+			Voxel_SetObjectFaceColor(TempVertex[0],255-AO0,255-AO0,255-AO0,255)
+			Voxel_SetObjectFaceColor(TempVertex[1],255-AO1,255-AO1,255-AO1,255)
+			Voxel_SetObjectFaceColor(TempVertex[2],255-AO2,255-AO2,255-AO2,255)
+			Voxel_SetObjectFaceColor(TempVertex[3],255-AO3,255-AO3,255-AO3,255)
+		
+			Voxel_SetObjectFaceTangent(TempVertex[0],0,0,-1)
+			Voxel_SetObjectFaceTangent(TempVertex[1],0,0,-1)
+			Voxel_SetObjectFaceTangent(TempVertex[2],0,0,-1)
+			Voxel_SetObjectFaceTangent(TempVertex[3],0,0,-1)
 			
 			Voxel_SetObjectFaceBitangent(TempVertex[0],0,1,0)
 			Voxel_SetObjectFaceBitangent(TempVertex[1],0,1,0)
@@ -484,10 +598,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
 			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],255,255,255,255)
+			Voxel_SetObjectFaceColor(TempVertex[0],255-AO0,255-AO0,255-AO0,255)
+			Voxel_SetObjectFaceColor(TempVertex[1],255-AO1,255-AO1,255-AO1,255)
+			Voxel_SetObjectFaceColor(TempVertex[2],255-AO2,255-AO2,255-AO2,255)
+			Voxel_SetObjectFaceColor(TempVertex[3],255-AO3,255-AO3,255-AO3,255)
 		
 			Voxel_SetObjectFaceTangent(TempVertex[0],1,0,0)
 			Voxel_SetObjectFaceTangent(TempVertex[1],1,0,0)
@@ -519,10 +633,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
 			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],255,255,255,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],255,255,255,255)
+			Voxel_SetObjectFaceColor(TempVertex[0],255-AO0,255-AO0,255-AO0,255)
+			Voxel_SetObjectFaceColor(TempVertex[1],255-AO1,255-AO1,255-AO1,255)
+			Voxel_SetObjectFaceColor(TempVertex[2],255-AO2,255-AO2,255-AO2,255)
+			Voxel_SetObjectFaceColor(TempVertex[3],255-AO3,255-AO3,255-AO3,255)
 		
 			Voxel_SetObjectFaceTangent(TempVertex[0],1,0,0)
 			Voxel_SetObjectFaceTangent(TempVertex[1],1,0,0)
@@ -549,6 +663,10 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 	Object.Index.insert(VertexID+3)
 	Object.Index.insert(VertexID+0)
 endfunction
+
+function Voxel_GetVertexAO(side1, side2, corner)
+  if (side1 and side2) then exitfunction 0
+endfunction 3 - (side1 + side2 + corner)
 
 function Voxel_SetObjectFacePosition(Vertex ref as VertexData,X#,Y#,Z#)
 	Vertex.Pos.X#=X#
@@ -589,11 +707,10 @@ endfunction
 // Generate the mesh header for a simple one sided plane
 // Position,Normal,UV,Color,Tangent and Bitangent Data
 function Voxel_CreateMeshMemblock(VertexCount,IndexCount)
-	Attributes=5
-//~	VertexSize=60
-	VertexSize=3*4+3*4+2*4+3*4+3*4
-//~	VertexOffset=100
-	VertexOffset=88
+	Attributes=6
+	VertexSize=60
+	VertexSize=3*4+3*4+2*4+4*1+3*4+3*4
+	VertexOffset=100
 	IndexOffset=VertexOffset+(VertexCount*VertexSize)
 
 	MemblockID=Creatememblock(IndexOffset+(IndexCount*4))
@@ -622,54 +739,39 @@ function Voxel_CreateMeshMemblock(VertexCount,IndexCount)
 	SetMemblockByte(MemblockID,52+3,4) 
 	SetMemblockString(MemblockID,52+4,"uv"+chr(0))
 	
-	SetMemblockByte(MemblockID,60,0)
-	SetMemblockByte(MemblockID,60+1,3)
-	SetMemblockByte(MemblockID,60+2,0)
+	SetMemblockByte(MemblockID,60,1)
+	SetMemblockByte(MemblockID,60+1,4)
+	SetMemblockByte(MemblockID,60+2,1)
 	SetMemblockByte(MemblockID,60+3,8)
-	SetMemblockString(MemblockID,60+4,"tangent"+chr(0))
+	SetMemblockString(MemblockID,60+4,"color"+chr(0))
 
 	SetMemblockByte(MemblockID,72,0)
 	SetMemblockByte(MemblockID,72+1,3)
 	SetMemblockByte(MemblockID,72+2,0)
-	SetMemblockByte(MemblockID,72+3,12)
-	SetMemblockString(MemblockID,72+4,"bitangent"+chr(0))
-	
-//~	SetMemblockByte(MemblockID,60,1)
-//~	SetMemblockByte(MemblockID,60+1,4)
-//~	SetMemblockByte(MemblockID,60+2,1)
-//~	SetMemblockByte(MemblockID,60+3,8)
-//~	SetMemblockString(MemblockID,60+4,"color"+chr(0))
+	SetMemblockByte(MemblockID,72+3,8)
+	SetMemblockString(MemblockID,72+4,"tangent"+chr(0))
 
-//~	SetMemblockByte(MemblockID,72,0)
-//~	SetMemblockByte(MemblockID,72+1,3)
-//~	SetMemblockByte(MemblockID,72+2,0)
-//~	SetMemblockByte(MemblockID,72+3,8)
-//~	SetMemblockString(MemblockID,72+4,"tangent"+chr(0))
-
-//~	SetMemblockByte(MemblockID,84,0)
-//~	SetMemblockByte(MemblockID,84+1,3)
-//~	SetMemblockByte(MemblockID,84+2,0)
-//~	SetMemblockByte(MemblockID,84+3,12)
-//~	SetMemblockString(MemblockID,84+4,"bitangent"+chr(0))
+	SetMemblockByte(MemblockID,84,0)
+	SetMemblockByte(MemblockID,84+1,3)
+	SetMemblockByte(MemblockID,84+2,0)
+	SetMemblockByte(MemblockID,84+3,12)
+	SetMemblockString(MemblockID,84+4,"bitangent"+chr(0))
 endfunction MemblockID
 
 function Voxel_WriteMeshMemblock(MemblockID,Object ref as ObjectData)
 	VertexCount=Object.Vertex.length+1
-//~	VertexSize=60
-	VertexSize=3*4+3*4+2*4+3*4+3*4
-//~	VertexOffset=100
-	VertexOffset=88
+	VertexSize=60
+	VertexSize=3*4+3*4+2*4+4*1+3*4+3*4
+	VertexOffset=100
 	IndexOffset=VertexOffset+(VertexCount*VertexSize)
-	TangentOffset=3*4+3*4+2*4
-	BitangentOffset=3*4+3*4+2*4+3*4
-//~	TangentOffset=3*4+3*4+2*4+4*1
-//~	BitangentOffset=3*4+3*4+2*4+4*1+3*4
+	TangentOffset=3*4+3*4+2*4+4*1
+	BitangentOffset=3*4+3*4+2*4+4*1+3*4
 	for VertexID=0 to Object.Vertex.length
 		Offset=VertexOffset+(VertexID*VertexSize)
 		SetMeshMemblockVertexPosition(MemblockID,VertexID,Object.Vertex[VertexID].Pos.X#,Object.Vertex[VertexID].Pos.Y#,Object.Vertex[VertexID].Pos.Z#)
 		SetMeshMemblockVertexNormal(MemblockID,VertexID,Object.Vertex[VertexID].Normal.X#,Object.Vertex[VertexID].Normal.Y#,Object.Vertex[VertexID].Normal.Z#)
 		SetMeshMemblockVertexUV(MemblockID,VertexID,Object.Vertex[VertexID].UV.X#,Object.Vertex[VertexID].UV.Y#)
-//~		SetMeshMemblockVertexColor(MemblockID,VertexID,Object.Vertex[VertexID].Color.Red#*255,Object.Vertex[VertexID].Color.Green#*255,Object.Vertex[VertexID].Color.Blue#*255,Object.Vertex[VertexID].Color.Alpha#*255)
+		SetMeshMemblockVertexColor(MemblockID,VertexID,Object.Vertex[VertexID].Color.Red#*255,Object.Vertex[VertexID].Color.Green#*255,Object.Vertex[VertexID].Color.Blue#*255,Object.Vertex[VertexID].Color.Alpha#*255)
 		Offset=VertexOffset+(VertexID*VertexSize)+TangentOffset
 		Voxel_SetMemblockVec3(MemblockID,Offset,Object.Vertex[VertexID].Tangent.X#,Object.Vertex[VertexID].Tangent.Y#,Object.Vertex[VertexID].Tangent.Z#)
 		Offset=VertexOffset+(VertexID*VertexSize)+BitangentOffset

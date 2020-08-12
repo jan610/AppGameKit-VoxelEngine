@@ -21,9 +21,10 @@ SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
 
-SetCameraRange(1,0.5,120)
+SetAntialiasMode(1)
+SetCameraRange(1,0.25,100)
 SetFogMode(1)
-SetFogRange(100,120)
+SetFogRange(80,99)
 SetSkyBoxVisible(1)
 SetGenerateMipmaps(1)
 SetDefaultMinFilter(0)
@@ -35,7 +36,7 @@ SetDefaultMagFilter(0)
 global Faceimages as FaceimageData
 Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
 
-World as WorldData[129,17,129]
+World as WorldData[257,17,257]
 
 Noise_Init()
 Noise_Seed(257)
@@ -55,9 +56,9 @@ for X=1 to World.length-1
 	for Y=1 to World[0].length-1
 		for Z=1 to World[0,0].length-1
 			ValueTerrain#=abs(Noise_Perlin2(X/freq1#,Z/freq1#))*World[0].length // This could become an array at some point
-			MaxGrass=(World[0].length*0.6)+ValueTerrain#/2.5
-			MaxDirt=(World[0].length*0.54)+ValueTerrain#/2.5
-			MaxStone=(World[0].length*0.4)+ValueTerrain#/2.5
+			MaxGrass=(World[0].length*0.7)+ValueTerrain#/2
+			MaxDirt=(World[0].length*0.63)+ValueTerrain#/2
+			MaxStone=(World[0].length*0.4)+ValueTerrain#/2
 			if Y>MaxDirt and Y<=MaxGrass
 				World[X,Y,Z].BlockType=1
 			elseif Y>MaxStone and Y<=MaxDirt
@@ -67,14 +68,17 @@ for X=1 to World.length-1
 				
 				ValueIron#=abs(Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#))
 				if ValueIron#>0.65 then World[X,Y,Z].BlockType=4
-				ValueCaves#=abs(Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#))
-				if ValueCaves#>0.55 then World[X,Y,Z].BlockType=0
 			endif
+			
+			ValueCaves#=abs(Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#))
+			if ValueCaves#>0.5 then World[X,Y,Z].BlockType=0
 		next Z
 	next Y
 next X
 
-Voxel_InitWorld(Faceimages,World)
+VisibleChunk as integer[16,16,16]		
+
+Voxel_CreateObjects(Faceimages,World,0,0,0,15,0,15)
 
 SpawnX#=World.length/2
 SpawnY#=World[0].length
@@ -83,12 +87,13 @@ SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 do
     Print("FPS: "+str(ScreenFPS(),0))
-    print(str(HitGridX)+","+str(HitGridY)+","+str(HitGridZ))
+//~ print(str(HitGridX)+","+str(HitGridY)+","+str(HitGridZ))
 //~ print(str(CubeX)+","+str(CubeY)+","+str(CubeZ))
 //~	print(str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
 //~	print(str(ChunkEndX)+","+str(ChunkEndY)+","+str(ChunkEndZ))
-	print(str(HitObjectID)+"/"+str(NeighbourObjectID))
-	print(BlockType)
+//~	print(str(HitObjectID)+"/"+str(NeighbourObjectID))
+//~	print(BlockType)
+
     
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
@@ -100,13 +105,36 @@ do
     NewCameraY#=GetCameraY(1)
     NewCameraZ#=GetCameraZ(1)
     
-//~    if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.3)>0
-//~		NewCameraX#=GetObjectRayCastSlideX(0)
-//~		NewCameraY#=GetObjectRayCastSlideY(0)
-//~		NewCameraZ#=GetObjectRayCastSlideZ(0)
-//~		
-//~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
-//~	endif
+    if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
+		NewCameraX#=GetObjectRayCastSlideX(0)
+		NewCameraY#=GetObjectRayCastSlideY(0)
+		NewCameraZ#=GetObjectRayCastSlideZ(0)
+		
+		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
+	endif
+	
+	
+//~	ChunkX=round(round(NewCameraX#)/ChunkSize)
+//~	ChunkY=0//round(round(NewCameraY#)/ChunkSize)
+//~	ChunkZ=round(round(NewCameraZ#)/ChunkSize)
+//~	
+//~	ChunkX=Voxel_Clamp(ChunkX,1,VisibleChunk.length-2)
+	ChunkY=Voxel_Clamp(ChunkY,0,VisibleChunk[0].length-1)
+//~	ChunkZ=Voxel_Clamp(ChunkZ,1,VisibleChunk[0,0].length-2)
+//~	
+//~	print(ChunkX)
+//~	print(ChunkZ)
+
+//~	for X=ChunkX-1 to ChunkX+1
+//~		for Y=ChunkY to ChunkY
+//~			for Z=ChunkZ-1 to ChunkZ+1				
+//~				if VisibleChunk[X,Y,Z]=0
+//~					Voxel_CreateObjects(Faceimages,World,X,Y,Z,X,Y,Z)
+//~					VisibleChunk[X,Y,Z]=1
+//~				endif
+//~			next Z
+//~		next Y
+//~	next X
 
  	PointerX#=Get3DVectorXFromScreen(GetPointerX(),GetPointerY())
 	PointerY#=Get3DVectorYFromScreen(GetPointerX(),GetPointerY())
