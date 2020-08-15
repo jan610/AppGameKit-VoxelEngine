@@ -51,19 +51,19 @@ type WorldData
 endtype
 
 type SubimageData
-	X
-	Y
-	Width
-	Height
+	X as integer
+	Y as integer
+	Width as integer
+	Height as integer
 endtype
 
 type FaceIndexData
-	FrontID
-	BackID
-	UpID
-	DownID
-	LeftID
-	RightID
+	FrontID as integer
+	BackID as integer
+	UpID as integer
+	DownID as integer
+	LeftID as integer
+	RightID as integer
 endtype
 
 type FaceimageData
@@ -232,41 +232,15 @@ function Voxel_UpdateObject(ObjectID,Faceimages ref as FaceimageData,World ref a
 	endif
 endfunction
 
-function Voxel_ReadFaceImages(SubImageFile$,FaceIndexFile$, Faceimages ref as FaceimageData)
-	Voxel_ReadSubimages(SubImageFile$,Faceimages.Subimages)
-	Voxel_ReadFaceimageIdices(FaceIndexFile$,Faceimages.FaceimageIndices)
+function Voxel_ReadFaceImages(FaceImagesFile$, Faceimages ref as FaceimageData)
+	string$ = Voxel_JSON_Load(FaceImagesFile$)
+	Faceimages.fromJSON(string$)
 endfunction
 
-function Voxel_ReadSubimages(File$,Subimages ref as SubimageData[])
-	Subimages.length=-1
-	local TempSubimage as SubimageData
-	FileID=OpenToRead(File$)
-	repeat
-		Line$=ReadLine(FileID)
-		TempSubimage.X=val(GetStringToken(Line$,":",2))
-		TempSubimage.Y=val(GetStringToken(Line$,":",3))
-		TempSubimage.Width=val(GetStringToken(Line$,":",4))
-		TempSubimage.Height=val(GetStringToken(Line$,":",5))
-		Subimages.insert(TempSubimage)
-	until FileEOF(FileID)
-	CloseFile(FileID)
-endfunction
-
-function Voxel_ReadFaceimageIdices(File$,FaceIndices ref as FaceIndexData[])
-	FaceIndices.length=-1
-	local TempFaceIndices as FaceIndexData
-	FileID=OpenToRead(File$)
-	repeat
-		Line$=ReadLine(FileID)
-		TempFaceIndices.FrontID=val(GetStringToken(Line$,":",2))
-		TempFaceIndices.BackID=val(GetStringToken(Line$,":",3))
-		TempFaceIndices.UpID=val(GetStringToken(Line$,":",4))
-		TempFaceIndices.DownID=val(GetStringToken(Line$,":",5))
-		TempFaceIndices.RightID=val(GetStringToken(Line$,":",6))
-		TempFaceIndices.LeftID=val(GetStringToken(Line$,":",7))
-		FaceIndices.insert(TempFaceIndices)
-	until FileEOF(FileID)
-	CloseFile(FileID)
+function Voxel_SaveFaceImages(FaceIMagesFile$)
+	local string$ as string
+	string$ = Faceimages.toJSON()
+	Voxel_JSON_Save( string$ , "faceimages_save.json")
 endfunction
 
 function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
