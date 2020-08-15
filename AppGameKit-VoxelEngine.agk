@@ -54,10 +54,14 @@ FILE_2=noise.agc;-1
 FILE_3=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;camera.agc;65;0
-FILE_NAME_1=0;main.agc;51;1
-FILE_NAME_2=0;noise.agc;401;2
-FILE_NAME_3=1;voxel.agc;531;3
+FILE_NAME_0=0;camera.agc;97;0
+FILE_NAME_1=0;main.agc;47;1
+FILE_NAME_2=0;noise.agc;194;2
+FILE_NAME_3=0;voxel.agc;267;3
 
 [watchvariables]
+watch_variable=@Version;
+watch_variable=X;
+watch_variable=Y;
+watch_variable=Z;
 

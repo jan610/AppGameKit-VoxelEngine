@@ -17,7 +17,7 @@ SetWindowAllowResize( 1 ) // allow the user to resize the window
 // set display properties
 SetVirtualResolution( 1024, 768 ) // doesn't have to match the window
 SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobile devices
-SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
+SetSyncRate( 60, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
 
@@ -36,7 +36,7 @@ SetDefaultMagFilter(0)
 global Faceimages as FaceimageData
 Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
 
-World as WorldData[257,17,257]
+World as WorldData[129,33,129]
 
 Noise_Init()
 Noise_Seed(257)
@@ -55,9 +55,9 @@ freq3#=4.0
 for X=1 to World.length-1
 	for Y=1 to World[0].length-1
 		for Z=1 to World[0,0].length-1
-			ValueTerrain#=abs(Noise_Perlin2(X/freq1#,Z/freq1#))*World[0].length // This could become an array at some point
+			ValueTerrain#=abs(Noise_Perlin2(X/freq1#,Z/freq1#))*World[0].length
 			MaxGrass=(World[0].length*0.7)+ValueTerrain#/2
-			MaxDirt=(World[0].length*0.63)+ValueTerrain#/2
+			MaxDirt=(World[0].length*0.64)+ValueTerrain#/2
 			MaxStone=(World[0].length*0.4)+ValueTerrain#/2
 			if Y>MaxDirt and Y<=MaxGrass
 				World[X,Y,Z].BlockType=1
@@ -65,25 +65,34 @@ for X=1 to World.length-1
 				World[X,Y,Z].BlockType=3
 			elseif Y<=MaxStone
 				World[X,Y,Z].BlockType=2
-				
+
 				ValueIron#=abs(Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#))
 				if ValueIron#>0.65 then World[X,Y,Z].BlockType=4
 			endif
-			
+
 			ValueCaves#=abs(Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#))
 			if ValueCaves#>0.5 then World[X,Y,Z].BlockType=0
 		next Z
 	next Y
 next X
 
-VisibleChunk as integer[16,16,16]		
+Voxel_Init(World,"Terrain.png")
 
-Voxel_CreateObjects(Faceimages,World,0,0,0,15,0,15)
+//~for ChunkX=0 to WorldSizeX
+//~	for ChunkY=0 to WorldSizeY
+//~		for ChunkZ=0 to WorldSizeZ
+//~			Voxel_CreateObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
+//~		next ChunkZ
+//~	next ChunkY
+//~next ChunkX
 
 SpawnX#=World.length/2
 SpawnY#=World[0].length
 SpawnZ#=World[0,0].length/2
 SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
+
+LightID=1
+CreatePointLight(LightID,0,0,0,12,255,255,255)
 
 do
     Print("FPS: "+str(ScreenFPS(),0))
@@ -92,49 +101,30 @@ do
 //~	print(str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
 //~	print(str(ChunkEndX)+","+str(ChunkEndY)+","+str(ChunkEndZ))
 //~	print(str(HitObjectID)+"/"+str(NeighbourObjectID))
-//~	print(BlockType)
+	print(BlockType)
 
-    
+
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
     OldCameraZ#=GetCameraZ(1)
-    
+
     ControlCamera()
-    
+
     NewCameraX#=GetCameraX(1)
     NewCameraY#=GetCameraY(1)
     NewCameraZ#=GetCameraZ(1)
-    
-    if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
-		NewCameraX#=GetObjectRayCastSlideX(0)
-		NewCameraY#=GetObjectRayCastSlideY(0)
-		NewCameraZ#=GetObjectRayCastSlideZ(0)
-		
-		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
-	endif
-	
-	
-//~	ChunkX=round(round(NewCameraX#)/ChunkSize)
-//~	ChunkY=0//round(round(NewCameraY#)/ChunkSize)
-//~	ChunkZ=round(round(NewCameraZ#)/ChunkSize)
-//~	
-//~	ChunkX=Voxel_Clamp(ChunkX,1,VisibleChunk.length-2)
-	ChunkY=Voxel_Clamp(ChunkY,0,VisibleChunk[0].length-1)
-//~	ChunkZ=Voxel_Clamp(ChunkZ,1,VisibleChunk[0,0].length-2)
-//~	
-//~	print(ChunkX)
-//~	print(ChunkZ)
 
-//~	for X=ChunkX-1 to ChunkX+1
-//~		for Y=ChunkY to ChunkY
-//~			for Z=ChunkZ-1 to ChunkZ+1				
-//~				if VisibleChunk[X,Y,Z]=0
-//~					Voxel_CreateObjects(Faceimages,World,X,Y,Z,X,Y,Z)
-//~					VisibleChunk[X,Y,Z]=1
-//~				endif
-//~			next Z
-//~		next Y
-//~	next X
+//~    if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
+//~		NewCameraX#=GetObjectRayCastSlideX(0)
+//~		NewCameraY#=GetObjectRayCastSlideY(0)
+//~		NewCameraZ#=GetObjectRayCastSlideZ(0)
+
+//~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
+//~	endif
+
+//~	SetPointLightPosition(LightID,NewCameraX#,NewCameraY#,NewCameraZ#)
+
+	Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,3)
 
  	PointerX#=Get3DVectorXFromScreen(GetPointerX(),GetPointerY())
 	PointerY#=Get3DVectorYFromScreen(GetPointerX(),GetPointerY())
@@ -145,19 +135,19 @@ do
 		HitPositionX#=GetObjectRayCastX(0)
 		HitPositionY#=GetObjectRayCastY(0)
 		HitPositionZ#=GetObjectRayCastZ(0)
-		
+
 		HitNormalX#=GetObjectRayCastNormalX(0)
 		HitNormalY#=GetObjectRayCastNormalY(0)
 		HitNormalZ#=GetObjectRayCastNormalZ(0)
-		
+
 		HitGridX=round(HitPositionX#-HitNormalX#*0.5)
 		HitGridY=round(HitPositionY#-HitNormalY#*0.5)
 		HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
-		
+
 		X=HitGridX
 		Y=HitGridY
 		Z=HitGridZ
-		
+
 		ChunkX=round((X-1)/ChunkSize)
 		ChunkY=round((Y-1)/ChunkSize)
 		ChunkZ=round((Z-1)/ChunkSize)
@@ -169,47 +159,47 @@ do
 		CubeZ=1+Mod(Z-1,ChunkSize)
 		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndX*ChunkEndZ
 	endif
-	
+
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
-    
+
     if GetRawMouseLeftPressed()=1
     	HitObjectID=ObjectRayCast(0,GetCameraX(1),GetCameraY(1),GetCameraZ(1),PointerX#*9999,PointerY#*9999,PointerZ#*9999)
     	if HitObjectID>0
 			HitPositionX#=GetObjectRayCastX(0)
 			HitPositionY#=GetObjectRayCastY(0)
 			HitPositionZ#=GetObjectRayCastZ(0)
-			
+
 			HitNormalX#=GetObjectRayCastNormalX(0)
 			HitNormalY#=GetObjectRayCastNormalY(0)
 			HitNormalZ#=GetObjectRayCastNormalZ(0)
-			
+
 			HitGridX=round(HitPositionX#+HitNormalX#*0.5)
 			HitGridY=round(HitPositionY#+HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#+HitNormalZ#*0.5)
-			
+
 			Voxel_AddCubeToObject(HitObjectID,Faceimages,World,HitGridX,HitGridY,HitGridZ,BlockType)
 		endif
 	endif
-    
+
     if GetRawMouseRightPressed()=1
     	HitObjectID=ObjectRayCast(0,GetCameraX(1),GetCameraY(1),GetCameraZ(1),PointerX#*9999,PointerY#*9999,PointerZ#*9999)
-    	if HitObjectID>0	
+    	if HitObjectID>0
 			HitPositionX#=GetObjectRayCastX(0)
 			HitPositionY#=GetObjectRayCastY(0)
 			HitPositionZ#=GetObjectRayCastZ(0)
-			
+
 			HitNormalX#=GetObjectRayCastNormalX(0)
 			HitNormalY#=GetObjectRayCastNormalY(0)
 			HitNormalZ#=GetObjectRayCastNormalZ(0)
-			
+
 			HitGridX=round(HitPositionX#-HitNormalX#*0.5)
 			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
-			
+
 			BlockType=Voxel_RemoveCubeFromObject(HitObjectID,Faceimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
-    
+
     Sync()
 loop
