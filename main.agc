@@ -5,9 +5,9 @@
 //~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 SetErrorMode(2)
 
+#include "noise.agc"
 #include "voxel.agc"
 #include "camera.agc"
-#include "noise.agc"
 
 // set window properties
 SetWindowTitle( "VoxelEngine" )
@@ -17,7 +17,7 @@ SetWindowAllowResize( 1 ) // allow the user to resize the window
 // set display properties
 SetVirtualResolution( 1024, 768 ) // doesn't have to match the window
 SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobile devices
-SetSyncRate( 60, 0 ) // 30fps instead of 60 to save battery
+SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
 
@@ -36,7 +36,7 @@ SetDefaultMagFilter(0)
 global Faceimages as FaceimageData
 Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
 
-World as WorldData[129,33,129]
+World as WorldData[257,33,257]
 
 Noise_Init()
 Noise_Seed(257)
@@ -49,32 +49,32 @@ Noise_Seed(257)
 //~	next Y
 //~next X
 
-freq1#=32.0
-freq2#=12.0
-freq3#=4.0
-for X=1 to World.length-1
-	for Y=1 to World[0].length-1
-		for Z=1 to World[0,0].length-1
-			ValueTerrain#=abs(Noise_Perlin2(X/freq1#,Z/freq1#))*World[0].length
-			MaxGrass=(World[0].length*0.7)+ValueTerrain#/2
-			MaxDirt=(World[0].length*0.64)+ValueTerrain#/2
-			MaxStone=(World[0].length*0.4)+ValueTerrain#/2
-			if Y>MaxDirt and Y<=MaxGrass
-				World[X,Y,Z].BlockType=1
-			elseif Y>MaxStone and Y<=MaxDirt
-				World[X,Y,Z].BlockType=3
-			elseif Y<=MaxStone
-				World[X,Y,Z].BlockType=2
+//~freq1#=32.0
+//~freq2#=12.0
+//~freq3#=4.0
+//~for X=1 to World.length-1
+//~	for Y=1 to World[0].length-1
+//~		for Z=1 to World[0,0].length-1
+//~			Value#=Noise_Perlin2(X/freq1#,Z/freq1#))*World[0].length
+//~			MaxGrass=(World[0].length*0.7)+Value#/2
+//~			MaxDirt=(World[0].length*0.64)+Value#/2
+//~			MaxStone=(World[0].length*0.4)+Value#/2
+//~			if Y>MaxDirt and Y<=MaxGrass
+//~				World[X,Y,Z].BlockType=1
+//~			elseif Y>MaxStone and Y<=MaxDirt
+//~				World[X,Y,Z].BlockType=3
+//~			elseif Y<=MaxStone
+//~				World[X,Y,Z].BlockType=2
 
-				ValueIron#=abs(Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#))
-				if ValueIron#>0.65 then World[X,Y,Z].BlockType=4
-			endif
+//~				ValueIron#=abs(Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#))
+//~				if ValueIron#>0.65 then World[X,Y,Z].BlockType=4
+//~			endif
 
-			ValueCaves#=abs(Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#))
-			if ValueCaves#>0.5 then World[X,Y,Z].BlockType=0
-		next Z
-	next Y
-next X
+//~			ValueCaves#=abs(Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#))
+//~			if ValueCaves#>0.5 then World[X,Y,Z].BlockType=0
+//~		next Z
+//~	next Y
+//~next X
 
 Voxel_Init(World,"Terrain.png")
 
@@ -95,9 +95,8 @@ LightID=1
 CreatePointLight(LightID,0,0,0,12,255,255,255)
 
 do
-    Print("FPS: "+str(ScreenFPS(),0))
-//~ print(str(HitGridX)+","+str(HitGridY)+","+str(HitGridZ))
-//~ print(str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+    print("FPS: "+str(ScreenFPS(),0))
+	print(str(CubeX)+","+str(CubeY)+","+str(CubeZ))
 //~	print(str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
 //~	print(str(ChunkEndX)+","+str(ChunkEndY)+","+str(ChunkEndZ))
 //~	print(str(HitObjectID)+"/"+str(NeighbourObjectID))
@@ -157,7 +156,7 @@ do
 		CubeX=1+Mod(X-1,ChunkSize)
 		CubeY=1+Mod(Y-1,ChunkSize)
 		CubeZ=1+Mod(Z-1,ChunkSize)
-		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkEndY+ChunkZ*ChunkEndX*ChunkEndZ
+		NeighbourObjectID=1+(ChunkX)+ChunkY*ChunkSize+ChunkZ*ChunkSize*ChunkSize
 	endif
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0

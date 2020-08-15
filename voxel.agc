@@ -71,13 +71,27 @@ type FaceimageData
 	FaceimageIndices as FaceIndexData[]
 endtype
 
+type Int3Data
+	X as integer
+	Y as integer
+	Z as integer
+endtype
+
+type ChunkData
+	Min as Int3Data
+	Max as Int3Data
+	ObjectID as integer
+	Visible as integer
+endtype
+
+global Chunk as ChunkData[32,32,32]
+
 #constant ChunkSize	16
 global WorldSize
 global WorldSizeX
 global WorldSizeY
 global WorldSizeZ
 global AtlasImageID
-global VisibleChunk as integer[16,16,16]
 global ChunkUpdateX
 global ChunkUpdateY
 global ChunkUpdateZ
@@ -126,10 +140,31 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,World ref as WorldD
 		TempY=Voxel_Clamp(ChunkUpdateY,0,WorldSizeY)
 		TempZ=Voxel_Clamp(ChunkUpdateZ,0,WorldSizeZ)
 		
-		if VisibleChunk[TempX,TempY,TempZ]=0
+		if Chunk[TempX,TempY,TempZ].Visible=0
+			Voxel_CreateNoise(World,TempX,TempY,TempZ)
 			Voxel_CreateObject(Faceimages,World,TempX,TempY,TempZ)
-			VisibleChunk[TempX,TempY,TempZ]=1
-		endif	
+			Chunk[TempX,TempY,TempZ].Visible=1
+		endif
+endfunction
+
+function Voxel_CreateNoise(World ref as WorldData[][][],ChunkX,ChunkY,ChunkZ)
+	StartX=ChunkX*ChunkSize
+	EndX=StartX+ChunkSize
+	StartY=ChunkY*ChunkSize
+	EndY=StartY+ChunkSize
+	StartZ=ChunkZ*ChunkSize
+	EndZ=StartZ+ChunkSize
+	
+	HeightFrequency#=32.0
+	for X=StartX to EndX+1
+		for Y=StartY to EndY+1
+			for Z=StartZ to EndZ+1
+				Value#=Noise_Perlin2(X/HeightFrequency#,Z/HeightFrequency#)*World[0].length
+				MaxGrass=(World[0].length*0.7)+Value#/2.0
+				if Y<MaxGrass then World[X,Y,Z].BlockType=1
+			next Z
+		next Y
+	next X
 endfunction
 
 function Voxel_CreateObject(FaceImages ref as FaceimageData,World ref as WorldData[][][],ChunkX,ChunkY,ChunkZ)
