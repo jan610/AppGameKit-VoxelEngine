@@ -5,6 +5,7 @@
 //~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 SetErrorMode(2)
 
+#include "json.agc"
 #include "noise.agc"
 #include "voxel.agc"
 #include "camera.agc"
@@ -34,7 +35,7 @@ SetDefaultMagFilter(0)
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
 
 global Faceimages as FaceimageData
-Voxel_ReadFaceImages("terrain subimages.txt","face indices.txt", Faceimages)
+Voxel_ReadFaceImages("terrain.json", Faceimages)
 
 World as WorldData[257,33,257]
 
