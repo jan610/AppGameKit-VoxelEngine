@@ -77,17 +77,18 @@ type Int3Data
 	Z as integer
 endtype
 
-type ChunkData
+type BorderData
 	Min as Int3Data
 	Max as Int3Data
+endtype
+
+type ChunkData
+	Border as BorderData
 	ObjectID as integer
 	Visible as integer
 endtype
 
-global Chunk as ChunkData[32,32,32]
-
 #constant ChunkSize	16
-global WorldSize
 global WorldSizeX
 global WorldSizeY
 global WorldSizeZ
@@ -102,16 +103,12 @@ global ChunkUpdateZ
 function Voxel_Init(World ref as WorldData[][][],File$)
 	AtlasImageID=LoadImage(File$)
 	
-	WorldSize=World.length
-	if WorldSize<World[0].length then WorldSize=World[0].length
-	if WorldSize<World[0,0].length then WorldSize=World[0,0].length
-	
 	WorldSizeX=trunc(World.length/ChunkSize)-1
 	WorldSizeY=trunc(World[0].length/ChunkSize)-1
 	WorldSizeZ=trunc(World[0,0].length/ChunkSize)-1
 endfunction
 
-function Voxel_UpdateObjects(FaceImages ref as FaceimageData,World ref as WorldData[][][],CameraX,CameraY,CameraZ,ViewDistance)	
+function Voxel_UpdateObjects(FaceImages ref as FaceimageData,Chunk ref as ChunkData[][][],World ref as WorldData[][][],CameraX,CameraY,CameraZ,ViewDistance)	
 		CameraChunkX=CameraX/ChunkSize
 		CameraChunkY=CameraY/ChunkSize
 		CameraChunkZ=CameraZ/ChunkSize
@@ -122,13 +119,12 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,World ref as WorldD
 		MaxX=Voxel_Clamp(CameraChunkX+ViewDistance,0,WorldSizeX)
 		MaxY=Voxel_Clamp(CameraChunkY+ViewDistance,0,WorldSizeY)
 		MaxZ=Voxel_Clamp(CameraChunkZ+ViewDistance,0,WorldSizeZ)
-		
-		ChunkUpdateX=ChunkUpdateX+1
-		if ChunkUpdateX>MaxX
-			ChunkUpdateX=MinX
-			ChunkUpdateY=ChunkUpdateY+1
-			if ChunkUpdateY>MaxY
-				ChunkUpdateY=MinY
+
+		if ChunkUpdateY>MaxY
+			ChunkUpdateY=MinY
+			ChunkUpdateX=ChunkUpdateX+1
+			if ChunkUpdateX>MaxX
+				ChunkUpdateX=MinX
 				ChunkUpdateZ=ChunkUpdateZ+1
 				if ChunkUpdateZ>MaxZ
 					ChunkUpdateZ=MinZ
@@ -140,49 +136,45 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,World ref as WorldD
 		TempY=Voxel_Clamp(ChunkUpdateY,0,WorldSizeY)
 		TempZ=Voxel_Clamp(ChunkUpdateZ,0,WorldSizeZ)
 		
+		Chunk[TempX,TempY,TempZ].Border.Min.X=ChunkUpdateX*ChunkSize+1
+		Chunk[TempX,TempY,TempZ].Border.Min.Y=ChunkUpdateY*ChunkSize+1
+		Chunk[TempX,TempY,TempZ].Border.Min.Z=ChunkUpdateZ*ChunkSize+1
+		Chunk[TempX,TempY,TempZ].Border.Max.X=ChunkUpdateX*ChunkSize+ChunkSize
+		Chunk[TempX,TempY,TempZ].Border.Max.Y=ChunkUpdateY*ChunkSize+ChunkSize
+		Chunk[TempX,TempY,TempZ].Border.Max.Z=ChunkUpdateZ*ChunkSize+ChunkSize
+		
 		if Chunk[TempX,TempY,TempZ].Visible=0
-			Voxel_CreateNoise(World,TempX,TempY,TempZ)
-			Voxel_CreateObject(Faceimages,World,TempX,TempY,TempZ)
+//~			Voxel_CreateNoise(Chunk[TempX,TempY,TempZ].Border,World)
+			Voxel_CreateObject(Faceimages,Chunk[TempX,TempY,TempZ],World)
 			Chunk[TempX,TempY,TempZ].Visible=1
 		endif
+		
+		ChunkUpdateY=ChunkUpdateY+1
 endfunction
 
-function Voxel_CreateNoise(World ref as WorldData[][][],ChunkX,ChunkY,ChunkZ)
-	StartX=ChunkX*ChunkSize
-	EndX=StartX+ChunkSize
-	StartY=ChunkY*ChunkSize
-	EndY=StartY+ChunkSize
-	StartZ=ChunkZ*ChunkSize
-	EndZ=StartZ+ChunkSize
-	
+function Voxel_CreateNoise(Border ref as BorderData,World ref as WorldData[][][])	
 	HeightFrequency#=32.0
-	for X=StartX to EndX+1
-		for Y=StartY to EndY+1
-			for Z=StartZ to EndZ+1
-				Value#=Noise_Perlin2(X/HeightFrequency#,Z/HeightFrequency#)*World[0].length
+	
+	for CubeX=Border.Min.X-1 to Border.Max.X+1
+		for CubeZ=Border.Min.Z-1 to Border.Max.Z+1
+			for CubeY=Border.Min.Y-1 to Border.Max.Y+1
+				Value#=Noise_Perlin2(CubeX/HeightFrequency#,CubeZ/HeightFrequency#)*World[0].length
 				MaxGrass=(World[0].length*0.7)+Value#/2.0
-				if Y<MaxGrass then World[X,Y,Z].BlockType=1
-			next Z
-		next Y
-	next X
+				if CubeY<MaxGrass then World[CubeX,CubeY,CubeZ].BlockType=1
+			next CubeY
+		next CubeZ
+	next CubeX
 endfunction
 
-function Voxel_CreateObject(FaceImages ref as FaceimageData,World ref as WorldData[][][],ChunkX,ChunkY,ChunkZ)
-	StartX=ChunkX*ChunkSize
-	EndX=StartX+ChunkSize
-	StartY=ChunkY*ChunkSize
-	EndY=StartY+ChunkSize
-	StartZ=ChunkZ*ChunkSize
-	EndZ=StartZ+ChunkSize
-	
+function Voxel_CreateObject(FaceImages ref as FaceimageData,Chunk ref as ChunkData,World ref as WorldData[][][])
 	local Object as ObjectData
-	for X=StartX+1 to EndX
-		for Y=StartY+1 to EndY
-			for Z=StartZ+1 to EndZ
-				Voxel_GenerateCubeFaces(Object,FaceImages,World,X,Y,Z)
-			next Z
-		next Y
-	next X
+	for CubeX=Chunk.Border.Min.X to Chunk.Border.Max.X
+		for CubeZ=Chunk.Border.Min.Z to Chunk.Border.Max.Z
+			for CubeY=Chunk.Border.Min.Y to Chunk.Border.Max.Y
+				Voxel_GenerateCubeFaces(Object,Faceimages,World,CubeX,CubeY,CubeZ)
+			next CubeY
+		next CubeZ
+	next CubeX
 	
 	if Object.Vertex.length>1
 		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
@@ -190,45 +182,31 @@ function Voxel_CreateObject(FaceImages ref as FaceimageData,World ref as WorldDa
 		Object.Index.length=-1
 		Object.Vertex.length=-1
 		
-		ObjectID=1+ChunkX+ChunkY*WorldSize+ChunkZ*WorldSize*WorldSize
-		CreateObjectFromMeshMemblock(ObjectID,MemblockID)
+		Chunk.ObjectID=CreateObjectFromMeshMemblock(MemblockID)
 		DeleteMemblock(MemblockID)
 		
-		SetObjectPosition(ObjectID,ChunkX*ChunkSize,ChunkY*ChunkSize,ChunkZ*ChunkSize)
-		SetObjectImage(ObjectID,AtlasImageID,0)
+		SetObjectPosition(Chunk.ObjectID,Chunk.Border.Min.X-1,Chunk.Border.Min.Y-1,Chunk.Border.Min.Z-1)
+		SetObjectImage(Chunk.ObjectID,AtlasImageID,0)
 	endif
-endfunction ObjectID
+endfunction Chunk.ObjectID
 
-function Voxel_UpdateObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][])
-	if GetObjectExists(ObjectID)
-		ObjectX=GetObjectX(ObjectID)
-		ObjectY=GetObjectY(ObjectID)
-		ObjectZ=GetObjectZ(ObjectID)
-		
-		StartX=ObjectX
-		EndX=StartX+ChunkSize
-		StartY=ObjectY
-		EndY=StartY+ChunkSize
-		StartZ=ObjectZ
-		EndZ=StartZ+ChunkSize
-		
-		local Object as ObjectData
-		for X=StartX+1 to EndX
-			for Y=StartY+1 to EndY
-				for Z=StartZ+1 to EndZ
-					Voxel_GenerateCubeFaces(Object,Faceimages,World,X,Y,Z)
-				next Z
-			next Y
-		next X
-		
-		if Object.Vertex.length>1
-			MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
-			Voxel_WriteMeshMemblock(MemblockID,Object)
-			SetObjectMeshFromMemblock(ObjectID,1,MemblockID)
-			DeleteMemblock(MemblockID)
-			Object.Index.length=-1
-			Object.Vertex.length=-1
-		endif
+function Voxel_UpdateObject(Faceimages ref as FaceimageData,Chunk ref as ChunkData,World ref as WorldData[][][])		
+	local Object as ObjectData
+	for CubeX=Chunk.Border.Min.X to Chunk.Border.Max.X
+		for CubeZ=Chunk.Border.Min.Z to Chunk.Border.Max.Z
+			for CubeY=Chunk.Border.Min.Y to Chunk.Border.Max.Y
+				Voxel_GenerateCubeFaces(Object,Faceimages,World,CubeX,CubeY,CubeZ)
+			next CubeY
+		next CubeZ
+	next CubeX
+	
+	if Object.Vertex.length>1
+		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
+		Voxel_WriteMeshMemblock(MemblockID,Object)
+		SetObjectMeshFromMemblock(Chunk.ObjectID,1,MemblockID)
+		DeleteMemblock(MemblockID)
+		Object.Index.length=-1
+		Object.Vertex.length=-1
 	endif
 endfunction
 
@@ -243,86 +221,76 @@ function Voxel_SaveFaceImages(FaceIMagesFile$)
 	Voxel_JSON_Save( string$ , "faceimages_save.json")
 endfunction
 
-function Voxel_RemoveCubeFromObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z)
+function Voxel_RemoveCubeFromObject(Faceimages ref as FaceimageData,Chunk ref as ChunkData[][][],World ref as WorldData[][][],X,Y,Z)
 	X=Voxel_Clamp(X,1,World.length-1)
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
 	BlockType=World[X,Y,Z].BlockType
 	World[X,Y,Z].BlockType=0
-	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)
 	ChunkY=round((Y-1)/ChunkSize)
 	ChunkZ=round((Z-1)/ChunkSize)
+	Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ],World)
+	
 	CubeX=1+Mod(X-1,ChunkSize)
 	CubeY=1+Mod(Y-1,ChunkSize)
 	CubeZ=1+Mod(Z-1,ChunkSize)
 
 	if CubeX=ChunkSize
-		NeighbourObjectID=1+(ChunkX+1)+ChunkY*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX+1,ChunkY,ChunkZ],World)
 	endif
 	if CubeX=1
-		NeighbourObjectID=1+(ChunkX-1)+ChunkY*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX-1,ChunkY,ChunkZ],World)
 	endif
 	if CubeY=ChunkSize
-		NeighbourObjectID=1+ChunkX+(ChunkY+1)*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY+1,ChunkZ],World)
 	endif
 	if CubeY=1
-		NeighbourObjectID=1+ChunkX+(ChunkY-1)*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY-1,ChunkZ],World)
 	endif
 	if CubeZ=ChunkSize
-		NeighbourObjectID=1+ChunkX+ChunkY*WorldSize+(ChunkZ+1)*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ+1],World)
 	endif
 	if CubeZ=1
-		NeighbourObjectID=1+ChunkX+ChunkY*WorldSize+(ChunkZ-1)*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ-1],World)
 	endif
 endfunction BlockType
 
-function Voxel_AddCubeToObject(ObjectID,Faceimages ref as FaceimageData,World ref as WorldData[][][],X,Y,Z,BlockType)
+function Voxel_AddCubeToObject(Faceimages ref as FaceimageData,Chunk ref as ChunkData[][][],World ref as WorldData[][][],X,Y,Z,BlockType)
 	X=Voxel_Clamp(X,1,World.length-1)
 	Y=Voxel_Clamp(Y,1,World[0].length-1)
 	Z=Voxel_Clamp(Z,1,World[0,0].length-1)
 	
 	World[X,Y,Z].BlockType=BlockType
-	Voxel_UpdateObject(ObjectID,Faceimages,World)
 	
 	ChunkX=round((X-1)/ChunkSize)
 	ChunkY=round((Y-1)/ChunkSize)
 	ChunkZ=round((Z-1)/ChunkSize)
+	Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ],World)
+	
 	CubeX=1+Mod(X-1,ChunkSize)
 	CubeY=1+Mod(Y-1,ChunkSize)
 	CubeZ=1+Mod(Z-1,ChunkSize)
 	
 	if CubeX=ChunkSize
-		NeighbourObjectID=1+(ChunkX+1)+ChunkY*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX+1,ChunkY,ChunkZ],World)
 	endif
 	if CubeX=1
-		NeighbourObjectID=1+(ChunkX-1)+ChunkY*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX-1,ChunkY,ChunkZ],World)
 	endif
 	if CubeY=ChunkSize
-		NeighbourObjectID=1+ChunkX+(ChunkY+1)*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY+1,ChunkZ],World)
 	endif
 	if CubeY=1
-		NeighbourObjectID=1+ChunkX+(ChunkY-1)*WorldSize+ChunkZ*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY-1,ChunkZ],World)
 	endif
 	if CubeZ=ChunkSize
-		NeighbourObjectID=1+ChunkX+ChunkY*WorldSize+(ChunkZ+1)*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ+1],World)
 	endif
 	if CubeZ=1
-		NeighbourObjectID=1+ChunkX+ChunkY*WorldSize+(ChunkZ-1)*WorldSize*WorldSize
-		Voxel_UpdateObject(NeighbourObjectID,Faceimages,World)
+		Voxel_UpdateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ-1],World)
 	endif
 endfunction
 
