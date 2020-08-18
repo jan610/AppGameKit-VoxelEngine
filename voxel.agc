@@ -109,9 +109,9 @@ function Voxel_Init(World ref as WorldData[][][],File$)
 endfunction
 
 function Voxel_UpdateObjects(FaceImages ref as FaceimageData,Chunk ref as ChunkData[][][],World ref as WorldData[][][],CameraX,CameraY,CameraZ,ViewDistance)	
-		CameraChunkX=CameraX/ChunkSize
-		CameraChunkY=CameraY/ChunkSize
-		CameraChunkZ=CameraZ/ChunkSize
+		CameraChunkX=round((CameraX-1)/ChunkSize)
+		CameraChunkY=round((CameraY-1)/ChunkSize)
+		CameraChunkZ=round((CameraZ-1)/ChunkSize)
 		
 		MinX=Voxel_Clamp(CameraChunkX-ViewDistance,0,WorldSizeX)
 		MinY=Voxel_Clamp(CameraChunkY-ViewDistance,0,WorldSizeY)
@@ -143,27 +143,91 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,Chunk ref as ChunkD
 		Chunk[TempX,TempY,TempZ].Border.Max.Y=ChunkUpdateY*ChunkSize+ChunkSize
 		Chunk[TempX,TempY,TempZ].Border.Max.Z=ChunkUpdateZ*ChunkSize+ChunkSize
 		
-		if Chunk[TempX,TempY,TempZ].Visible=0
-//~			Voxel_CreateNoise(Chunk[TempX,TempY,TempZ].Border,World)
-			Voxel_CreateObject(Faceimages,Chunk[TempX,TempY,TempZ],World)
-			Chunk[TempX,TempY,TempZ].Visible=1
+		ChunkMidX#=Chunk[TempX,TempY,TempZ].Border.Min.X+(Chunk[TempX,TempY,TempZ].Border.Max.X-Chunk[TempX,TempY,TempZ].Border.Min.X)/2.0
+		ChunkMidY#=Chunk[TempX,TempY,TempZ].Border.Min.Y+(Chunk[TempX,TempY,TempZ].Border.Max.Y-Chunk[TempX,TempY,TempZ].Border.Min.Y)/2.0
+		ChunkMidZ#=Chunk[TempX,TempY,TempZ].Border.Min.Z+(Chunk[TempX,TempY,TempZ].Border.Max.Z-Chunk[TempX,TempY,TempZ].Border.Min.Z)/2.0
+		
+		OldCameraX#=GetCameraX(1)
+		OldCameraY#=GetCameraY(1)
+		OldCameraZ#=GetCameraZ(1)
+		
+		ChunkDirX#=ChunkMidX#-OldCameraX#
+		ChunkDirY#=ChunkMidY#-OldCameraY#
+		ChunkDirZ#=ChunkMidZ#-OldCameraZ#
+		
+		ChunkDist#=sqrt(ChunkDirX#*ChunkDirX#+ChunkDirY#*ChunkDirY#+ChunkDirZ#*ChunkDirZ#)
+		
+		ChunkDirX#=ChunkDirX#/ChunkDist#
+		ChunkDirY#=ChunkDirY#/ChunkDist#
+		ChunkDirZ#=ChunkDirZ#/ChunkDist#
+		
+		MoveCameraLocalZ(1,1)
+		
+		NewCameraX#=GetCameraX(1)
+		NewCameraY#=GetCameraY(1)
+		NewCameraZ#=GetCameraZ(1)
+		
+		MoveCameraLocalZ(1,-1)
+
+		CameraDirX#=NewCameraX#-OldCameraX#
+		CameraDirY#=NewCameraY#-OldCameraY#
+		CameraDirZ#=NewCameraZ#-OldCameraZ#
+		
+		Dot#=ChunkDirX#*CameraDirX#+ChunkDirY#*CameraDirY#+ChunkDirZ#*CameraDirZ#
+		
+		if Dot#>0.4 or (CameraChunkX=TempX and CameraChunkY=TempY and CameraChunkZ=TempZ)
+			if Chunk[TempX,TempY,TempZ].ObjectID=0
+//~				Voxel_CreateNoise(Chunk[TempX,TempY,TempZ].Border,World)
+				Voxel_CreateObject(Faceimages,Chunk[TempX,TempY,TempZ],World)
+				Chunk[TempX,TempY,TempZ].Visible=1
+			elseif Chunk[TempX,TempY,TempZ].Visible=0
+				SetObjectVisible(Chunk[TempX,TempY,TempZ].ObjectID,1)
+				Chunk[TempX,TempY,TempZ].Visible=1
+			endif
+		else
+			if Chunk[TempX,TempY,TempZ].Visible=1 and Chunk[TempX,TempY,TempZ].ObjectID>0
+				SetObjectVisible(Chunk[TempX,TempY,TempZ].ObjectID,0)
+//~				Voxel_DeleteObject(Chunk[TempX,TempY,TempZ])
+				Chunk[TempX,TempY,TempZ].Visible=0
+			endif
 		endif
 		
+		
+//~		if Chunk[TempX,TempY,TempZ].ObjectID=0 then Voxel_CreateObject(Faceimages,Chunk[TempX,TempY,TempZ],World)
+
 		ChunkUpdateY=ChunkUpdateY+1
 endfunction
 
 function Voxel_CreateNoise(Border ref as BorderData,World ref as WorldData[][][])	
-	HeightFrequency#=32.0
-	
+	freq1#=32.0
+	freq2#=12.0
+	freq3#=2.0	
 	for CubeX=Border.Min.X-1 to Border.Max.X+1
 		for CubeZ=Border.Min.Z-1 to Border.Max.Z+1
 			for CubeY=Border.Min.Y-1 to Border.Max.Y+1
-				Value#=Noise_Perlin2(CubeX/HeightFrequency#,CubeZ/HeightFrequency#)*World[0].length
-				MaxGrass=(World[0].length*0.7)+Value#/2.0
-				if CubeY<MaxGrass then World[CubeX,CubeY,CubeZ].BlockType=1
+				Value1#=Noise_Perlin2(CubeX/freq1#,CubeZ/freq1#)*World[0].length
+//~				Value2#=Noise_Perlin3(CubeX/freq2#,CubeY/freq2#,CubeZ/freq2#)
+				MaxGrass=(World[0].length*0.7)+Value1#/2
+				MaxDirt=(World[0].length*0.64)+Value1#/2
+				MaxStone=(World[0].length*0.4)+Value1#/2
+				if CubeY>MaxDirt and CubeY<=MaxGrass
+					World[CubeX,CubeY,CubeZ].BlockType=1
+				elseif CubeY>MaxStone and CubeY<=MaxDirt
+					World[CubeX,CubeY,CubeZ].BlockType=3
+				elseif CubeY<=MaxStone
+					World[CubeX,CubeY,CubeZ].BlockType=2
+					Value3#=Noise_Perlin3(CubeX/freq3#,CubeY/freq3#,CubeZ/freq3#)
+					if Value3#>0.68 then World[CubeX,CubeY,CubeZ].BlockType=4
+				endif
+//~				if Value2#>0.5 then World[CubeX,CubeY,CubeZ].BlockType=0
 			next CubeY
 		next CubeZ
 	next CubeX
+endfunction
+
+function Voxel_DeleteObject(Chunk ref as ChunkData)	
+	DeleteObject(Chunk.ObjectID)
+	Chunk.ObjectID=0
 endfunction
 
 function Voxel_CreateObject(FaceImages ref as FaceimageData,Chunk ref as ChunkData,World ref as WorldData[][][])
