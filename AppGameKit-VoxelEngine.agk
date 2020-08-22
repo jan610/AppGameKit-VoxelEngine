@@ -53,11 +53,15 @@ FILE_1=json.agc;-1
 FILE_2=main.agc;-1
 FILE_3=noise.agc;-1
 FILE_4=voxel.agc;-1
+FILE_5=constants.agc;-1
 
 [files]
-FILE_NAME_0=0;main.agc;47;0
-FILE_NAME_1=1;noise.agc;0;1
-FILE_NAME_2=0;voxel.agc;0;2
+FILE_NAME_0=0;camera.agc;0;0
+FILE_NAME_1=0;json.agc;8;1
+FILE_NAME_2=0;main.agc;40;2
+FILE_NAME_3=0;noise.agc;0;3
+FILE_NAME_4=0;voxel.agc;297;4
+FILE_NAME_5=1;constants.agc;6;5
 
 [watchvariables]
 watch_variable=@Version;
