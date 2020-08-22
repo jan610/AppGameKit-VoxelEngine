@@ -15,9 +15,9 @@ We are adding features by priority
 
 ## Screenshots
 
-![Preview](https://github.com/jan610/AppGameKit-VoxelEngine/doc/images/r1.png)
+![Preview](doc/images/r1.png)
 
-![Preview](https://github.com/jan610/AppGameKit-VoxelEngine/doc/images/r1_1.png)
+![Preview](doc/images/r1_1.png)
 
 ## Requirements
 
