@@ -5,6 +5,7 @@
 //~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 SetErrorMode(2)
 
+#include "constants.agc"
 #include "json.agc"
 #include "noise.agc"
 #include "voxel.agc"
@@ -176,6 +177,21 @@ do
 			BlockType=Voxel_RemoveCubeFromObject(Faceimages,Chunk,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
+
+	if GetRawKeyPressed(KEY_F4)
+		local filet$ as string
+		filet$ = "faceimages_save_" + Str(Timer()) + ".json"
+		Voxel_SaveFaceImages(filet$, FaceImages)
+		Message("Textures / subimages saved in " + filet$)
+	endif
+
+	// TODO: Wrap the World in a type
+	// if GetRawKeyPressed(KEY_F5)
+	// 	local filew$ as string
+	// 	filew$ = "world_save_" + Str(Timer()) + ".json"
+	// 	Voxel_SaveWorld(filew$, World)
+	// 	Message("Saved World in " + filew$)
+	// endif
 
     Sync()
 loop
