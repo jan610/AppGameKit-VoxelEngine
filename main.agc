@@ -38,8 +38,9 @@ SetDefaultMagFilter(0)
 global Faceimages as FaceimageData
 Voxel_ReadFaceImages("terrain.json", Faceimages)
 
-World as WorldData[257,64,257]
-Chunk as ChunkData[16,3,16]
+World as WorldData
+
+Voxel_Init(World,16,64,32,64,"Terrain.png")
 
 Noise_Init()
 Noise_Seed(257)
@@ -47,47 +48,49 @@ Noise_Seed(257)
 freq1#=32.0
 freq2#=12.0
 freq3#=2.0
-for X=1 to World.length-1
-	for Y=1 to World[0].length-1
-		for Z=1 to World[0,0].length-1
-			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World[0].length
+for X=1 to World.Terrain.length-1
+	for Y=1 to World.Terrain[0].length-1
+		for Z=1 to World.Terrain[0,0].length-1
+			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World.Terrain[0].length
 			Value2#=Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#)
-			MaxGrass=(World[0].length*0.7)+Value1#/2
-			MaxDirt=(World[0].length*0.64)+Value1#/2
-			MaxStone=(World[0].length*0.4)+Value1#/2
+			MaxGrass=(World.Terrain[0].length*0.7)+Value1#/2
+			MaxDirt=(World.Terrain[0].length*0.64)+Value1#/2
+			MaxStone=(World.Terrain[0].length*0.4)+Value1#/2
 			if Y>MaxDirt and Y<=MaxGrass
-				World[X,Y,Z].BlockType=1
+				World.Terrain[X,Y,Z].BlockType=1
 			elseif Y>MaxStone and Y<=MaxDirt
-				World[X,Y,Z].BlockType=3
+				World.Terrain[X,Y,Z].BlockType=3
 			elseif Y<=MaxStone
-				World[X,Y,Z].BlockType=2
+				World.Terrain[X,Y,Z].BlockType=2
 				Value3#=Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#)
-				if Value3#>0.68 then World[X,Y,Z].BlockType=4
+				if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
 			endif
-			if Value2#>0.5 then World[X,Y,Z].BlockType=0
+			if Value2#>0.5 then World.Terrain[X,Y,Z].BlockType=0
 		next Z
 	next Y
 next X
 
-Voxel_Init(World,"Terrain.png")
+for ChunkX=0 to World.Chunk.length
+	for ChunkY=0 to World.Chunk[0].length
+		for ChunkZ=0 to World.Chunk[0,0].length
+			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X=ChunkX*Voxel_ChunkSize+1
+			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y=ChunkY*Voxel_ChunkSize+1
+			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z=ChunkZ*Voxel_ChunkSize+1
+			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
+			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
+			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
+			Voxel_CreateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
+		next ChunkZ
+	next ChunkY
+next ChunkX
 
-//~for ChunkX=0 to Chunk.length-1
-//~	for ChunkY=0 to Chunk[0].length-1
-//~		for ChunkZ=0 to Chunk[0,0].length-1
-//~			Chunk[TempX,TempY,TempZ].Border.Min.X=ChunkUpdateX*ChunkSize+1
-//~			Chunk[TempX,TempY,TempZ].Border.Min.Y=ChunkUpdateY*ChunkSize+1
-//~			Chunk[TempX,TempY,TempZ].Border.Min.Z=ChunkUpdateZ*ChunkSize+1
-//~			Chunk[TempX,TempY,TempZ].Border.Max.X=ChunkUpdateX*ChunkSize+ChunkSize
-//~			Chunk[TempX,TempY,TempZ].Border.Max.Y=ChunkUpdateY*ChunkSize+ChunkSize
-//~			Chunk[TempX,TempY,TempZ].Border.Max.Z=ChunkUpdateZ*ChunkSize+ChunkSize
-//~			Voxel_CreateObject(Faceimages,Chunk[ChunkX,ChunkY,ChunkZ],World)
-//~		next ChunkZ
-//~	next ChunkY
-//~next ChunkX
+//~ReadPath$=GetReadPath()
+//~Filepath$="Raw:"+ReadPath$+"media/World.json"
+Voxel_SaveWorld("World.json", World)
 
-SpawnX#=World.length/2
-SpawnY#=World[0].length
-SpawnZ#=World[0,0].length/2
+SpawnX#=World.Terrain.length/2
+SpawnY#=World.Terrain[0].length
+SpawnZ#=World.Terrain[0,0].length/2
 SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 PreviewImageID=LoadImage("preview.png")
@@ -122,7 +125,7 @@ do
 //~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
 //~	endif
 
-	Voxel_UpdateObjects(Faceimages,Chunk,World,NewCameraX#,NewCameraY#,NewCameraZ#,3)
+//~	Voxel_UpdateObjects(Faceimages,Chunk,World,NewCameraX#,NewCameraY#,NewCameraZ#,3)
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
@@ -147,15 +150,15 @@ do
 
 		SetObjectPosition(PreviewObjectID,HitGridX,HitGridY,HitGridZ)
 
-		ChunkX=round((HitGridX-1)/ChunkSize)
-		ChunkY=round((HitGridY-1)/ChunkSize)
-		ChunkZ=round((HitGridZ-1)/ChunkSize)
+		ChunkX=round((HitGridX-1)/Voxel_ChunkSize)
+		ChunkY=round((HitGridY-1)/Voxel_ChunkSize)
+		ChunkZ=round((HitGridZ-1)/Voxel_ChunkSize)
 		
-		CubeX=1+Mod(HitGridX-1,ChunkSize)
-		CubeY=1+Mod(HitGridY-1,ChunkSize)
-		CubeZ=1+Mod(HitGridZ-1,ChunkSize)
+		CubeX=1+Mod(HitGridX-1,Voxel_ChunkSize)
+		CubeY=1+Mod(HitGridY-1,Voxel_ChunkSize)
+		CubeZ=1+Mod(HitGridZ-1,Voxel_ChunkSize)
 		
-		ArrayObjectID=Chunk[ChunkX,ChunkY,ChunkZ].ObjectID
+		ArrayObjectID=World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID
 	endif
 
     if GetRawMouseLeftPressed()=1
@@ -164,7 +167,7 @@ do
 			HitGridY=round(HitPositionY#+HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#+HitNormalZ#*0.5)
 
-			Voxel_AddCubeToObject(Faceimages,Chunk,World,HitGridX,HitGridY,HitGridZ,BlockType)
+			Voxel_AddCubeToObject(Faceimages,World,HitGridX,HitGridY,HitGridZ,BlockType)
 		endif
 	endif
 
@@ -174,7 +177,7 @@ do
 			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
 			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
 
-			BlockType=Voxel_RemoveCubeFromObject(Faceimages,Chunk,World,HitGridX,HitGridY,HitGridZ)
+			BlockType=Voxel_RemoveCubeFromObject(Faceimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
 
