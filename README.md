@@ -1,6 +1,6 @@
 # AppGameKit-VoxelEngine
 
-Discord Channel: https://discord.gg/dcYKYV
+Discord Channel: https://discord.gg/3skKPx2
 
 ![Preview](doc/images/r1.png)
 
