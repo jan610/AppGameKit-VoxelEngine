@@ -280,14 +280,27 @@ function Voxel_UpdateObject(Faceimages ref as FaceimageData,Chunk ref as ChunkDa
 endfunction
 
 function Voxel_ReadFaceImages(FaceImagesFile$, Faceimages ref as FaceimageData)
+	local string$ as string
 	string$ = Voxel_JSON_Load(FaceImagesFile$)
 	Faceimages.fromJSON(string$)
 endfunction
 
-function Voxel_SaveFaceImages(FaceIMagesFile$)
+function Voxel_SaveFaceImages(FaceIMagesFile$, Faceimages as FaceimageData)
 	local string$ as string
 	string$ = Faceimages.toJSON()
-	Voxel_JSON_Save( string$ , "faceimages_save.json")
+	Voxel_JSON_Save(string$ , FaceIMagesFile$)
+endfunction
+
+function Voxel_ReadWorld(WorldFile$, World ref as WorldData)
+	local string$ as string
+	string$ = Voxel_JSON_Load(WorldFile$)
+	World.fromJSON(string$)
+endfunction
+
+function Voxel_SaveWorld(WorldFile$, World as WorldData)
+	local string$ as string
+	string$ = World.toJSON()
+	Voxel_JSON_Save(string$ , WorldFile$)
 endfunction
 
 function Voxel_RemoveCubeFromObject(Faceimages ref as FaceimageData,Chunk ref as ChunkData[][][],World ref as WorldData[][][],X,Y,Z)
