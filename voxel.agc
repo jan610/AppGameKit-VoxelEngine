@@ -96,6 +96,7 @@ global AtlasImageID
 global ChunkUpdateX
 global ChunkUpdateY
 global ChunkUpdateZ
+global ChunkUpdateDist
 
 // Functions
 
@@ -113,12 +114,12 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,Chunk ref as ChunkD
 		CameraChunkY=round((CameraY-1)/ChunkSize)
 		CameraChunkZ=round((CameraZ-1)/ChunkSize)
 		
-		MinX=Voxel_Clamp(CameraChunkX-ViewDistance,0,WorldSizeX)
-		MinY=Voxel_Clamp(CameraChunkY-ViewDistance,0,WorldSizeY)
-		MinZ=Voxel_Clamp(CameraChunkZ-ViewDistance,0,WorldSizeZ)
-		MaxX=Voxel_Clamp(CameraChunkX+ViewDistance,0,WorldSizeX)
-		MaxY=Voxel_Clamp(CameraChunkY+ViewDistance,0,WorldSizeY)
-		MaxZ=Voxel_Clamp(CameraChunkZ+ViewDistance,0,WorldSizeZ)
+		MinX=Voxel_Clamp(CameraChunkX-ChunkUpdateDist,0,WorldSizeX)
+		MinY=Voxel_Clamp(CameraChunkY-ChunkUpdateDist,0,WorldSizeY)
+		MinZ=Voxel_Clamp(CameraChunkZ-ChunkUpdateDist,0,WorldSizeZ)
+		MaxX=Voxel_Clamp(CameraChunkX+ChunkUpdateDist,0,WorldSizeX)
+		MaxY=Voxel_Clamp(CameraChunkY+ChunkUpdateDist,0,WorldSizeY)
+		MaxZ=Voxel_Clamp(CameraChunkZ+ChunkUpdateDist,0,WorldSizeZ)
 
 		if ChunkUpdateY>MaxY
 			ChunkUpdateY=MinY
@@ -128,6 +129,10 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,Chunk ref as ChunkD
 				ChunkUpdateZ=ChunkUpdateZ+1
 				if ChunkUpdateZ>MaxZ
 					ChunkUpdateZ=MinZ
+					ChunkUpdateDist=ChunkUpdateDist+1
+					if ChunkUpdateDist>ViewDistance
+						ChunkUpdateDist=0
+					endif
 				endif
 			endif
 		endif
