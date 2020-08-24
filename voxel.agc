@@ -344,22 +344,22 @@ function Voxel_RemoveCubeFromObject(Faceimages ref as FaceimageData,World ref as
 	CubeZ=1+Mod(Z-1,Voxel_ChunkSize)
 
 	if CubeX=Voxel_ChunkSize
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX+1,ChunkY,ChunkZ],World)
+		if ChunkX+1<=World.Chunk.length then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX+1,ChunkY,ChunkZ],World)
 	endif
 	if CubeX=1
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX-1,ChunkY,ChunkZ],World)
+		if ChunkX-1>=0 then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX-1,ChunkY,ChunkZ],World)
 	endif
 	if CubeY=Voxel_ChunkSize
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY+1,ChunkZ],World)
+		if ChunkY+1<=World.Chunk[0].length then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY+1,ChunkZ],World)
 	endif
 	if CubeY=1
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY-1,ChunkZ],World)
+		if ChunkY-1>=0 then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY-1,ChunkZ],World)
 	endif
 	if CubeZ=Voxel_ChunkSize
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ+1],World)
+		if ChunkZ+1<=World.Chunk[0,0].length then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ+1],World)
 	endif
 	if CubeZ=1
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ-1],World)
+		if ChunkZ-1>=0 then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ-1],World)
 	endif
 endfunction BlockType
 
@@ -380,22 +380,22 @@ function Voxel_AddCubeToObject(Faceimages ref as FaceimageData,World ref as Worl
 	CubeZ=1+Mod(Z-1,Voxel_ChunkSize)
 	
 	if CubeX=Voxel_ChunkSize
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX+1,ChunkY,ChunkZ],World)
+		if ChunkX+1<=World.Chunk.length then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX+1,ChunkY,ChunkZ],World)
 	endif
 	if CubeX=1
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX-1,ChunkY,ChunkZ],World)
+		if ChunkX-1>=0 then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX-1,ChunkY,ChunkZ],World)
 	endif
 	if CubeY=Voxel_ChunkSize
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY+1,ChunkZ],World)
+		if ChunkY+1<=World.Chunk[0].length then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY+1,ChunkZ],World)
 	endif
 	if CubeY=1
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY-1,ChunkZ],World)
+		if ChunkY-1>=0 then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY-1,ChunkZ],World)
 	endif
 	if CubeZ=Voxel_ChunkSize
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ+1],World)
+		if ChunkZ+1<=World.Chunk[0,0].length then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ+1],World)
 	endif
 	if CubeZ=1
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ-1],World)
+		if ChunkZ-1>=0 then Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ-1],World)
 	endif
 endfunction
 
