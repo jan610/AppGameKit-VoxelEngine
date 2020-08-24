@@ -24,12 +24,12 @@ function ControlCamera()
 
 	// move the camera with keys
 	if GetKeyboardExists()=1
-		if(GetRawKeyState(87)) then VelocityZ#=CurveValue(VelocityZ#,speed#,10.0)
-		if(GetRawKeyState(83)) then VelocityZ#=CurveValue(VelocityZ#,-speed#,10.0)
-		if(GetRawKeyState(65)) then VelocityX#=CurveValue(VelocityX#,-speed#,10.0)
-		if(GetRawKeyState(68)) then VelocityX#=CurveValue(VelocityX#,speed#,10.0)
-		if(GetRawKeyState(81)) then VelocityY#=CurveValue(VelocityY#,-speed#,10.0)
-		if(GetRawKeyState(69)) then VelocityY#=CurveValue(VelocityY#,speed#,10.0)
+		if(GetRawKeyState(KEY_W)) then VelocityZ#=CurveValue(VelocityZ#,speed#,10.0)
+		if(GetRawKeyState(KEY_S)) then VelocityZ#=CurveValue(VelocityZ#,-speed#,10.0)
+		if(GetRawKeyState(KEY_A)) then VelocityX#=CurveValue(VelocityX#,-speed#,10.0)
+		if(GetRawKeyState(KEY_D)) then VelocityX#=CurveValue(VelocityX#,speed#,10.0)
+		if(GetRawKeyState(KEY_Q)) then VelocityY#=CurveValue(VelocityY#,-speed#,10.0)
+		if(GetRawKeyState(KEY_E)) then VelocityY#=CurveValue(VelocityY#,speed#,10.0)
 	else
 		JoystickSize#=GetVirtualHeight()*0.25
 		SetJoystickScreenPosition(GetScreenBoundsLeft()+JoystickSize#*0.5,GetScreenBoundsBottom()-JoystickSize#*0.5,JoystickSize#)
