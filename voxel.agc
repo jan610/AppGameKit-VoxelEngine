@@ -98,6 +98,7 @@ global Voxel_WorldSizeX
 global Voxel_WorldSizeY
 global Voxel_WorldSizeZ
 global Voxel_AtlasImageID
+global Voxel_ShaderID
 global Voxel_ChunkUpdateX
 global Voxel_ChunkUpdateY
 global Voxel_ChunkUpdateZ
@@ -108,6 +109,7 @@ global Voxel_ChunkUpdateDist
 // Initialise the Voxel Engine
 function Voxel_Init(World ref as WorldData,ChunkSize,TerrainSizeX,TerrainSizeY,TerrainSizeZ,File$)
 	Voxel_AtlasImageID=LoadImage(File$)
+	Voxel_ShaderID=LoadShader("shader/vertex.vs","shader/fragment.ps")
 	
 	Voxel_ChunkSize=ChunkSize
 	Voxel_WorldSizeX=trunc((TerrainSizeX+1)/Voxel_ChunkSize)-1
@@ -278,6 +280,7 @@ function Voxel_CreateObject(FaceImages ref as FaceimageData,Chunk ref as ChunkDa
 		
 		SetObjectPosition(Chunk.ObjectID,Chunk.Border.Min.X-1,Chunk.Border.Min.Y-1,Chunk.Border.Min.Z-1)
 		SetObjectImage(Chunk.ObjectID,Voxel_AtlasImageID,0)
+		SetObjectShader(Chunk.ObjectID,Voxel_ShaderID)
 		Chunk.Visible=1
 	endif
 endfunction Chunk.ObjectID
