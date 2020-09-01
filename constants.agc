@@ -1,6 +1,15 @@
 // File: constants.agc
 // Created: 20-08-22
 
+// Default world and terrain files
+
+#constant WORLD_JSON = "World.json"
+#constant TERRAIN_IMG = "Terrain.png"
+#constant TERRAIN_JSON = "terrain.json"
+#constant PREVIEW_IMG = "preview.png"
+
+// Keymapping
+
 #constant KEY_BACK 8
 #constant KEY_TAB 9
 #constant KEY_ENTER 13
@@ -62,3 +71,4 @@
 #constant KEY_F6 117
 #constant KEY_F7 118
 #constant KEY_F8 119
+
