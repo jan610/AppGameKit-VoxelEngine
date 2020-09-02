@@ -18,18 +18,18 @@ function ControlCamera()
 
 	speed#=20*GetFrameTime()
 	if GetRawKeyState(16) then speed#=50*GetFrameTime()
-	VelocityZ#=CurveValue(VelocityZ#,0,10.0)
-	VelocityX#=CurveValue(VelocityX#,0,10.0)
-	VelocityY#=CurveValue(VelocityY#,0,10.0)
+	VelocityZ#=Core_CurveValue(VelocityZ#,0,10.0)
+	VelocityX#=Core_CurveValue(VelocityX#,0,10.0)
+	VelocityY#=Core_CurveValue(VelocityY#,0,10.0)
 
 	// move the camera with keys
 	if GetKeyboardExists()=1
-		if(GetRawKeyState(KEY_W)) then VelocityZ#=CurveValue(VelocityZ#,speed#,10.0)
-		if(GetRawKeyState(KEY_S)) then VelocityZ#=CurveValue(VelocityZ#,-speed#,10.0)
-		if(GetRawKeyState(KEY_A)) then VelocityX#=CurveValue(VelocityX#,-speed#,10.0)
-		if(GetRawKeyState(KEY_D)) then VelocityX#=CurveValue(VelocityX#,speed#,10.0)
-		if(GetRawKeyState(KEY_Q)) then VelocityY#=CurveValue(VelocityY#,-speed#,10.0)
-		if(GetRawKeyState(KEY_E)) then VelocityY#=CurveValue(VelocityY#,speed#,10.0)
+		if(GetRawKeyState(KEY_W)) then VelocityZ#=Core_CurveValue(VelocityZ#,speed#,10.0)
+		if(GetRawKeyState(KEY_S)) then VelocityZ#=Core_CurveValue(VelocityZ#,-speed#,10.0)
+		if(GetRawKeyState(KEY_A)) then VelocityX#=Core_CurveValue(VelocityX#,-speed#,10.0)
+		if(GetRawKeyState(KEY_D)) then VelocityX#=Core_CurveValue(VelocityX#,speed#,10.0)
+		if(GetRawKeyState(KEY_Q)) then VelocityY#=Core_CurveValue(VelocityY#,-speed#,10.0)
+		if(GetRawKeyState(KEY_E)) then VelocityY#=Core_CurveValue(VelocityY#,speed#,10.0)
 	else
 		JoystickSize#=GetVirtualHeight()*0.25
 		SetJoystickScreenPosition(GetScreenBoundsLeft()+JoystickSize#*0.5,GetScreenBoundsBottom()-JoystickSize#*0.5,JoystickSize#)
@@ -57,50 +57,7 @@ function ControlCamera()
         PointerDragY#=(PointerY#-PointerStartY#)
     endif
     
-    CameraAngleNewX#=CurveAngle(CameraAngleNewX#,CameraAngleX#+PointerDragY#,7.0)
-    CameraAngleNewY#=CurveAngle(CameraAngleNewY#,CameraAngleY#+PointerDragX#,7.0)
+    CameraAngleNewX#=Core_CurveAngle(CameraAngleNewX#,CameraAngleX#+PointerDragY#,7.0)
+    CameraAngleNewY#=Core_CurveAngle(CameraAngleNewY#,CameraAngleY#+PointerDragX#,7.0)
     SetCameraRotation(1,CameraAngleNewX#,CameraAngleNewY#,0)
 endfunction
-
-function CurveValue(current# as float, destination# as float, speed# as float)
-    local diff# as float
-    if  speed# < 1.0  then speed# = 1.0
-    diff# = destination# - current#
-    current# = current# + ( diff# / speed# )
-endfunction current#
-
-function CurveAngle(current# as float, destination# as float, speed# as float)
-    local diff# as float
-    if speed# < 1.0 then speed# = 1.0
-    destination# = WrapAngle( destination# )
-    current# = WrapAngle( current# )
-    diff# = destination# - current#
-    if diff# <- 180.0 then diff# = ( destination# + 360.0 ) - current#
-    if diff# > 180.0 then diff# = destination# - ( current# + 360.0 )
-    current# = current# + ( diff# / speed# )
-    current# = WrapAngle( current# )
-endfunction current#
-
-function WrapAngle( angle# as float) 
-    local iChunkOut as integer
-    local breakout as integer
-    iChunkOut = angle#
-    iChunkOut = iChunkOut - mod( iChunkOut, 360 )
-    angle# = angle# - iChunkOut
-    breakout = 10000
-    while angle# < 0.0 or angle# >= 360.0 
-        if angle# < 0.0 then angle# = angle# + 360.0
-        if angle# >= 360.0 then angle# = angle# - 360.0
-        dec breakout
-        if  breakout = 0  then exit
-    endwhile
-    if  breakout = 0  then angle# = 0.0
-endfunction angle#
-
-function Lerp(Start#,End#,Time#)
-endfunction Start#+Time#*(End#-Start#)
-
-function Clamp(Value#,Min#,Max#)
-	if Value#>Max# then Value#=Max#
-	if Value#<Min# then Value#=Min#
-endfunction Value#

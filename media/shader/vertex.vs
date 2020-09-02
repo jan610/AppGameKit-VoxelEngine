@@ -4,9 +4,9 @@ attribute mediump vec2 uv;
 attribute mediump vec4 color;
 
 varying highp vec3 posVarying;
-//~varying mediump vec3 normalVarying;
+varying mediump vec3 normalVarying;
 varying mediump vec2 uvVarying;
-//~varying mediump vec3 lightVarying;
+varying mediump vec3 lightVarying;
 varying highp vec4 colorVarying;
 
 uniform highp mat3 agk_WorldNormal;
@@ -14,7 +14,7 @@ uniform highp mat4 agk_World;
 uniform highp mat4 agk_ViewProj;
 uniform mediump vec4 uvBounds0;
 
-//~mediump vec3 GetVSLighting( mediump vec3 normal, highp vec3 pos );
+mediump vec3 GetVSLighting( mediump vec3 normal, highp vec3 pos );
 
 void main()
 {
@@ -23,7 +23,7 @@ void main()
     gl_Position = agk_ViewProj * pos;
     mediump vec3 norm = normalize(agk_WorldNormal * normal);
     posVarying = pos.xyz;
-//~    normalVarying = norm;
-//~    lightVarying = GetVSLighting( norm, posVarying );
+    normalVarying = norm;
+    lightVarying = GetVSLighting( norm, posVarying );
 	colorVarying = color;
 }

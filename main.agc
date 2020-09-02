@@ -6,6 +6,7 @@
 SetErrorMode(2)
 
 #include "constants.agc"
+#include "core.agc"
 #include "json.agc"
 #include "noise.agc"
 #include "voxel.agc"
@@ -28,7 +29,7 @@ SetCameraRange(1,0.25,100)
 SetFogMode(1)
 SetFogRange(80,99)
 SetSkyBoxVisible(1)
-SetGenerateMipmaps(1)
+SetGenerateMipmaps(0)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
 
@@ -40,7 +41,8 @@ Voxel_ReadFaceImages("terrain.json", Faceimages)
 
 World as WorldData
 
-Voxel_Init(World,16,64,32,64,"Terrain.png")
+Voxel_Init(World,16,128,32,128,"Terrain.png")
+
 
 Noise_Init()
 Noise_Seed(257)
@@ -48,9 +50,9 @@ Noise_Seed(257)
 freq1#=32.0
 freq2#=12.0
 freq3#=2.0
-for X=1 to World.Terrain.length-1
-	for Y=1 to World.Terrain[0].length-1
-		for Z=1 to World.Terrain[0,0].length-1
+for X=0 to World.Terrain.length
+	for Y=0 to World.Terrain[0].length
+		for Z=0 to World.Terrain[0,0].length
 			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World.Terrain[0].length
 			Value2#=Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#)
 			MaxGrass=(World.Terrain[0].length*0.7)+Value1#/2
@@ -66,10 +68,11 @@ for X=1 to World.Terrain.length-1
 				if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
 			endif
 			if Value2#>0.5 then World.Terrain[X,Y,Z].BlockType=0
+			World.Terrain[X,Y,Z].LightValue=15
 		next Z
 	next Y
 next X
-
+/*
 for ChunkX=0 to World.Chunk.length
 	for ChunkY=0 to World.Chunk[0].length
 		for ChunkZ=0 to World.Chunk[0,0].length
@@ -79,14 +82,16 @@ for ChunkX=0 to World.Chunk.length
 			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
 			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
 			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
+//~			Voxel_UpdateLight(World.Chunk[ChunkX,ChunkY,ChunkZ],World)
 			Voxel_CreateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
 		next ChunkZ
 	next ChunkY
 next ChunkX
+*/
 
 //~ReadPath$=GetReadPath()
 //~Filepath$="Raw:"+ReadPath$+"media/World.json"
-Voxel_SaveWorld("World.json", World)
+//~Voxel_SaveWorld("World.json", World)
 
 SpawnX#=World.Terrain.length/2
 SpawnY#=World.Terrain[0].length
@@ -94,18 +99,26 @@ SpawnZ#=World.Terrain[0,0].length/2
 SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 PreviewImageID=LoadImage("preview.png")
+SetImageMinFilter(PreviewImageID,1)
+SetImageMagFilter(PreviewImageID,1)
 PreviewObjectID=CreateObjectBox(1.01,1.01,1.01)
 SetObjectImage(PreviewObjectID,PreviewImageID,0)
 SetObjectAlphaMask(PreviewObjectID,1)
 SetObjectCollisionMode(PreviewObjectID,0)
 
+//~LightID=1
+//~CreatePointLight(LightID,0,0,0,10,255,255,255)
+//~SetAmbientColor(8,8,8)
+
+
+ChunkUpdateSwitch=1
 do
     print("FPS: "+str(ScreenFPS(),0))
-	print(str(CubeX)+","+str(CubeY)+","+str(CubeZ))
-//~	print(str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
-//~	print(str(ChunkEndX)+","+str(ChunkEndY)+","+str(ChunkEndZ))
-	print(str(HitObjectID)+"/"+str(ArrayObjectID))
-	print(BlockType)
+	print("Cube Position; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+	print("Object ID: "+str(HitObjectID))
+	print("Block Type: "+str(BlockType))
+	print("Light Value: "+str(LightValue))
+	print("Chunk Updating: "+str(ChunkUpdateSwitch))
 
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
@@ -125,7 +138,8 @@ do
 //~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
 //~	endif
 
-//~	Voxel_UpdateObjects(Faceimages,Chunk,World,NewCameraX#,NewCameraY#,NewCameraZ#,3)
+	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
+	if ChunkUpdateSwitch=1 then Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,2)
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
@@ -158,7 +172,9 @@ do
 		CubeY=1+Mod(HitGridY-1,Voxel_ChunkSize)
 		CubeZ=1+Mod(HitGridZ-1,Voxel_ChunkSize)
 		
-		ArrayObjectID=World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID
+		LightValue=World.Terrain[HitGridX,HitGridY+1,HitGridZ].LightValue
+		
+//~		SetPointLightPosition(LightID,HitPositionX#+HitNormalX#,HitPositionY#+HitNormalY#,HitPositionZ#+HitNormalZ#)
 	endif
 
     if GetRawMouseLeftPressed()=1
