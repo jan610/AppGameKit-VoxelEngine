@@ -37,12 +37,11 @@ SetDefaultMagFilter(0)
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
 
 global Faceimages as FaceimageData
-Voxel_ReadFaceImages("terrain.json", Faceimages)
+Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
 
 World as WorldData
 
-Voxel_Init(World,16,128,32,128,"Terrain.png")
-
+Voxel_Init(World,16,128,32,128,TERRAIN_IMG)
 
 Noise_Init()
 Noise_Seed(257)
@@ -90,15 +89,16 @@ next ChunkX
 */
 
 //~ReadPath$=GetReadPath()
-//~Filepath$="Raw:"+ReadPath$+"media/World.json"
-//~Voxel_SaveWorld("World.json", World)
+//~Filepath$="Raw:"+ReadPath$+"media/world.json"
+Voxel_SaveWorld(WORLD_JSON, World)
 
 SpawnX#=World.Terrain.length/2
 SpawnY#=World.Terrain[0].length
 SpawnZ#=World.Terrain[0,0].length/2
 SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
-PreviewImageID=LoadImage("preview.png")
+
+PreviewImageID=LoadImage(PREVIEW_IMG)
 SetImageMinFilter(PreviewImageID,1)
 SetImageMagFilter(PreviewImageID,1)
 PreviewObjectID=CreateObjectBox(1.01,1.01,1.01)
@@ -113,13 +113,6 @@ SetObjectCollisionMode(PreviewObjectID,0)
 
 ChunkUpdateSwitch=1
 do
-    print("FPS: "+str(ScreenFPS(),0))
-	print("Cube Position; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
-	print("Object ID: "+str(HitObjectID))
-	print("Block Type: "+str(BlockType))
-	print("Light Value: "+str(LightValue))
-	print("Chunk Updating: "+str(ChunkUpdateSwitch))
-
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
     OldCameraZ#=GetCameraZ(1)
@@ -197,20 +190,43 @@ do
 		endif
 	endif
 
+ 	// TODO: Needs a click to reload
+ 	
 	if GetRawKeyPressed(KEY_F4)
-		local filet$ as string
-		filet$ = "faceimages_save_" + Str(Timer()) + ".json"
-		Voxel_SaveFaceImages(filet$, FaceImages)
-		Message("Textures / subimages saved in " + filet$)
+		local filest$ as string
+		filest$ = TERRAIN_JSON
+		Voxel_SaveFaceImages(filest$, FaceImages)
+		Message("Textures / subimages saved in " + filest$)
+	endif
+	
+	if GetRawKeyPressed(KEY_F5)
+		local filert$ as string
+		filert$ = TERRAIN_JSON
+		Voxel_ReadFaceImages(filert$, FaceImages)
+		Message("Textures / subimages loaded from " + filert$)
 	endif
 
-	// TODO: Wrap the World in a type
-	// if GetRawKeyPressed(KEY_F5)
-	// 	local filew$ as string
-	// 	filew$ = "world_save_" + Str(Timer()) + ".json"
-	// 	Voxel_SaveWorld(filew$, World)
-	// 	Message("Saved World in " + filew$)
-	// endif
+	if GetRawKeyPressed(KEY_F6)
+ 		local filesw$ as string
+	 	filesw$ = WORLD_JSON
+	 	Voxel_SaveWorld(filesw$, World)
+	 	Message("World saved in " + filesw$)
+	endif
+	
+	if GetRawKeyPressed(KEY_F7)
+ 		local filerw$ as string
+	 	filerw$ = WORLD_JSON
+	 	Voxel_ReadWorld(filerw$, World)
+	 	Message("World loaded from " + filerw$)
+	endif
 
+	// TODO A complete Logging by pressing any key
+    print("FPS: "+str(ScreenFPS(),0))
+	print("Cube Position; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+	print("Object ID: "+str(HitObjectID))
+	print("Block Type: "+str(BlockType))
+	print("Light Value: "+str(LightValue))
+	print("Chunk Updating: "+str(ChunkUpdateSwitch))
+	
     Sync()
 loop
