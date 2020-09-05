@@ -30,3 +30,7 @@ You will need a copy of [AppGameKit Classic](https://store.steampowered.com/app/
 ## Discord
 
 https://discord.gg/3skKPx2
+
+## Development thread
+
+https://forum.thegamecreators.com/thread/226699
