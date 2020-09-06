@@ -196,7 +196,7 @@ function Voxel_UpdateObjects(FaceImages ref as FaceimageData,World ref as WorldD
 		next ChunkY
 	next Dist
 	
-	if ChunkUpdate.length>0
+	if ChunkUpdate.length>-1
 		ChunkX=ChunkUpdate[0].X
 		ChunkY=ChunkUpdate[0].Y
 		ChunkZ=ChunkUpdate[0].Z
