@@ -8,10 +8,11 @@ The engine shows the basics about voxel terrain generation from different noise 
 
 We are adding features by priority
 
+- [Improve the noise functions] (https://github.com/jan610/AppGameKit-VoxelEngine/issues/12)
+- [Save and Load the generated world](https://github.com/jan610/AppGameKit-VoxelEngine/issues/10)
+- [Add a customizable GUI](https://github.com/jan610/AppGameKit-VoxelEngine/issues/9)
 - [Greedy Meshing implementation](https://github.com/jan610/AppGameKit-VoxelEngine/issues/7)
 - [Load Single Images for better modability](https://github.com/jan610/AppGameKit-VoxelEngine/issues/8)
-- [Save and Load the generated world](https://github.com/jan610/AppGameKit-VoxelEngine/issues/10)
-- [Add a GUI](https://github.com/jan610/AppGameKit-VoxelEngine/issues/9)
 
 ## Screenshots
 
