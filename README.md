@@ -28,10 +28,10 @@ https://www.youtube.com/watch?v=hGy0U2PQzpg
 
 You will need a copy of [AppGameKit Classic](https://store.steampowered.com/app/325180/AppGameKit_Classic_Easy_Game_Development/) or [AppGameKit Studio](https://store.steampowered.com/app/1024640/AppGameKit_Studio/) to compile this engine.
 
-## Discord
+## Join us at Discord!
 
 https://discord.gg/3skKPx2
 
-## Development thread
+## Forum development thread
 
 https://forum.thegamecreators.com/thread/226699
