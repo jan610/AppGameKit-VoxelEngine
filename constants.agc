@@ -1,12 +1,6 @@
+// Project: AppGameKit-VoxelEngine
 // File: constants.agc
 // Created: 20-08-22
-
-// Default world and terrain files
-
-#constant WORLD_JSON = "World.json"
-#constant TERRAIN_IMG = "Terrain.png"
-#constant TERRAIN_JSON = "terrain.json"
-#constant PREVIEW_IMG = "preview.png"
 
 // Keymapping
 

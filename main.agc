@@ -1,16 +1,23 @@
 // Project: AppGameKit-VoxelEngine
 // Created: 20-07-31
 
+// #option_explicit
+
 // show all errors
-//~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 SetErrorMode(2)
 
+//~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 #include "constants.agc"
 #include "core.agc"
 #include "json.agc"
 #include "noise.agc"
 #include "voxel.agc"
-#include "camera.agc"
+#include "terrain.agc"
+#include "controller.agc"
+#include "logger.agc"
+
+global Faceimages as FaceimageData
+global World as WorldData
 
 // set window properties
 SetWindowTitle( "VoxelEngine" )
@@ -36,61 +43,16 @@ SetDefaultMagFilter(0)
 //~local Subimages as SubimageData[]
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
 
-global Faceimages as FaceimageData
-Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
+Voxel_ReadFaceImages(VOXEL_TERRAIN_JSON, Faceimages)
 
-World as WorldData
+Voxel_Init(World,16,128,32,128,"terrain.png")
 
-Voxel_Init(World,16,128,32,128,TERRAIN_IMG)
-
-Noise_Init()
-Noise_Seed(257)
-
-freq1#=32.0
-freq2#=12.0
-freq3#=2.0
-for X=0 to World.Terrain.length
-	for Y=0 to World.Terrain[0].length
-		for Z=0 to World.Terrain[0,0].length
-			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World.Terrain[0].length
-			Value2#=Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#)
-			MaxGrass=(World.Terrain[0].length*0.7)+Value1#/2
-			MaxDirt=(World.Terrain[0].length*0.64)+Value1#/2
-			MaxStone=(World.Terrain[0].length*0.4)+Value1#/2
-			if Y>MaxDirt and Y<=MaxGrass
-				World.Terrain[X,Y,Z].BlockType=1
-			elseif Y>MaxStone and Y<=MaxDirt
-				World.Terrain[X,Y,Z].BlockType=3
-			elseif Y<=MaxStone
-				World.Terrain[X,Y,Z].BlockType=2
-				Value3#=Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#)
-				if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
-			endif
-			if Value2#>0.5 then World.Terrain[X,Y,Z].BlockType=0
-			World.Terrain[X,Y,Z].LightValue=15
-		next Z
-	next Y
-next X
-/*
-for ChunkX=0 to World.Chunk.length
-	for ChunkY=0 to World.Chunk[0].length
-		for ChunkZ=0 to World.Chunk[0,0].length
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X=ChunkX*Voxel_ChunkSize+1
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y=ChunkY*Voxel_ChunkSize+1
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z=ChunkZ*Voxel_ChunkSize+1
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
-//~			Voxel_UpdateLight(World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-			Voxel_CreateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-		next ChunkZ
-	next ChunkY
-next ChunkX
-*/
+Voxel_Generate_Terrain(257) // Generates the terrain by noise seed
 
 //~ReadPath$=GetReadPath()
-//~Filepath$="Raw:"+ReadPath$+"media/world.json"
-Voxel_SaveWorld(WORLD_JSON, World)
+//~Filepath$="Raw:"+ReadPath$+"media/"+ WORLD_JSON
+
+//Voxel_SaveWorld(VOXEL_WORLD_JSON, World)
 
 SpawnX#=World.Terrain.length/2
 SpawnY#=World.Terrain[0].length
@@ -98,7 +60,7 @@ SpawnZ#=World.Terrain[0,0].length/2
 SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 
-PreviewImageID=LoadImage(PREVIEW_IMG)
+PreviewImageID=LoadImage("preview.png")
 SetImageMinFilter(PreviewImageID,1)
 SetImageMagFilter(PreviewImageID,1)
 PreviewObjectID=CreateObjectBox(1.01,1.01,1.01)
@@ -117,7 +79,7 @@ do
     OldCameraY#=GetCameraY(1)
     OldCameraZ#=GetCameraZ(1)
 
-    ControlCamera()
+    Voxel_Controller_Camera()
 
     NewCameraX#=GetCameraX(1)
     NewCameraY#=GetCameraY(1)
@@ -151,15 +113,15 @@ do
 		HitNormalY#=GetObjectRayCastNormalY(0)
 		HitNormalZ#=GetObjectRayCastNormalZ(0)
 
-		HitGridX=round(HitPositionX#-HitNormalX#*0.5)
-		HitGridY=round(HitPositionY#-HitNormalY#*0.5)
-		HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
+		HitGridX=Round(HitPositionX#-HitNormalX#*0.5)
+		HitGridY=Round(HitPositionY#-HitNormalY#*0.5)
+		HitGridZ=Round(HitPositionZ#-HitNormalZ#*0.5)
 
 		SetObjectPosition(PreviewObjectID,HitGridX,HitGridY,HitGridZ)
 
-		ChunkX=round((HitGridX-1)/Voxel_ChunkSize)
-		ChunkY=round((HitGridY-1)/Voxel_ChunkSize)
-		ChunkZ=round((HitGridZ-1)/Voxel_ChunkSize)
+		ChunkX=Round((HitGridX-1)/Voxel_ChunkSize)
+		ChunkY=Round((HitGridY-1)/Voxel_ChunkSize)
+		ChunkZ=Round((HitGridZ-1)/Voxel_ChunkSize)
 		
 		CubeX=1+Mod(HitGridX-1,Voxel_ChunkSize)
 		CubeY=1+Mod(HitGridY-1,Voxel_ChunkSize)
@@ -172,9 +134,9 @@ do
 
     if GetRawMouseLeftPressed()=1
     	if HitObjectID>0
-			HitGridX=round(HitPositionX#+HitNormalX#*0.5)
-			HitGridY=round(HitPositionY#+HitNormalY#*0.5)
-			HitGridZ=round(HitPositionZ#+HitNormalZ#*0.5)
+			HitGridX=Round(HitPositionX#+HitNormalX#*0.5)
+			HitGridY=Round(HitPositionY#+HitNormalY#*0.5)
+			HitGridZ=Round(HitPositionZ#+HitNormalZ#*0.5)
 
 			Voxel_AddCubeToObject(Faceimages,World,HitGridX,HitGridY,HitGridZ,BlockType)
 		endif
@@ -182,51 +144,24 @@ do
 
     if GetRawMouseRightPressed()=1
     	if HitObjectID>0
-			HitGridX=round(HitPositionX#-HitNormalX#*0.5)
-			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
-			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
+			HitGridX=Round(HitPositionX#-HitNormalX#*0.5)
+			HitGridY=Round(HitPositionY#-HitNormalY#*0.5)
+			HitGridZ=Round(HitPositionZ#-HitNormalZ#*0.5)
 
 			BlockType=Voxel_RemoveCubeFromObject(Faceimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
 
- 	// TODO: Needs a click to reload
- 	
-	if GetRawKeyPressed(KEY_F4)
-		local filest$ as string
-		filest$ = TERRAIN_JSON
-		Voxel_SaveFaceImages(filest$, FaceImages)
-		Message("Textures / subimages saved in " + filest$)
-	endif
-	
-	if GetRawKeyPressed(KEY_F5)
-		local filert$ as string
-		filert$ = TERRAIN_JSON
-		Voxel_ReadFaceImages(filert$, FaceImages)
-		Message("Textures / subimages loaded from " + filert$)
-	endif
+    Print("FPS: "+Str(ScreenFPS(),0))
+    
+	Voxel_Controller_Keyboard()
 
-	if GetRawKeyPressed(KEY_F6)
- 		local filesw$ as string
-	 	filesw$ = WORLD_JSON
-	 	Voxel_SaveWorld(filesw$, World)
-	 	Message("World saved in " + filesw$)
+	if GetRawKeyState(KEY_F1)
+		Print("Cube Position; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+		Print("Object ID: "+str(HitObjectID))
+		Print("Block Type: "+str(BlockType))
+		Print("Light Value: "+str(LightValue))
+		Print("Chunk Updating: "+str(ChunkUpdateSwitch))
 	endif
-	
-	if GetRawKeyPressed(KEY_F7)
- 		local filerw$ as string
-	 	filerw$ = WORLD_JSON
-	 	Voxel_ReadWorld(filerw$, World)
-	 	Message("World loaded from " + filerw$)
-	endif
-
-	// TODO A complete Logging by pressing any key
-    print("FPS: "+str(ScreenFPS(),0))
-	print("Cube Position; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
-	print("Object ID: "+str(HitObjectID))
-	print("Block Type: "+str(BlockType))
-	print("Light Value: "+str(LightValue))
-	print("Chunk Updating: "+str(ChunkUpdateSwitch))
-	
     Sync()
 loop

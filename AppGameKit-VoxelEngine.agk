@@ -48,22 +48,25 @@ dynamic_memory=0
 output_path=
 
 [projectfiles]
-FILE_0=camera.agc;-1
-FILE_1=constants.agc;-1
+FILE_0=constants.agc;-1
+FILE_1=core.agc;-1
 FILE_2=json.agc;-1
 FILE_3=main.agc;-1
 FILE_4=noise.agc;-1
 FILE_5=voxel.agc;-1
-FILE_6=core.agc;-1
+FILE_6=logger.agc;-1
+FILE_7=terrain.agc;-1
+FILE_8=controller.agc;-1
 
 [files]
-FILE_NAME_0=0;camera.agc;62;0
-FILE_NAME_1=0;constants.agc;9;1
-FILE_NAME_2=0;json.agc;8;2
-FILE_NAME_3=0;main.agc;86;3
-FILE_NAME_4=0;noise.agc;0;4
-FILE_NAME_5=0;voxel.agc;312;5
-FILE_NAME_6=1;core.agc;0;6
+FILE_NAME_0=0;constants.agc;0;0
+FILE_NAME_1=0;core.agc;0;1
+FILE_NAME_2=0;json.agc;0;2
+FILE_NAME_3=0;main.agc;79;3
+FILE_NAME_4=0;voxel.agc;0;4
+FILE_NAME_5=0;logger.agc;0;5
+FILE_NAME_6=0;terrain.agc;0;6
+FILE_NAME_7=0;controller.agc;113;7
 
 [watchvariables]
 watch_variable=@Version;
