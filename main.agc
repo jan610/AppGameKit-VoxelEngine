@@ -20,9 +20,10 @@ SetWindowAllowResize( 1 ) // allow the user to resize the window
 // set display properties
 SetVirtualResolution( 1024, 768 ) // doesn't have to match the window
 SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobile devices
-SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
+SetSyncRate( 30, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
+SetPrintSize(16)
 
 SetAntialiasMode(1)
 SetCameraRange(1,0.25,100)
@@ -67,7 +68,7 @@ for X=0 to World.Terrain.length
 				if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
 			endif
 			if Value2#>0.5 then World.Terrain[X,Y,Z].BlockType=0
-			World.Terrain[X,Y,Z].LightValue=15
+			World.Terrain[X,Y,Z].LightValue=2
 		next Z
 	next Y
 next X
@@ -111,7 +112,7 @@ SetObjectCollisionMode(PreviewObjectID,0)
 //~SetAmbientColor(8,8,8)
 
 
-ChunkUpdateSwitch=1
+//~ChunkUpdateSwitch=1
 do
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
@@ -221,12 +222,14 @@ do
 	endif
 
 	// TODO A complete Logging by pressing any key
-    print("FPS: "+str(ScreenFPS(),0))
-	print("Cube Position; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+    print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
+	print("Cube; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
 	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
 	print("Light Value: "+str(LightValue))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
+	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
 	
     Sync()
 loop

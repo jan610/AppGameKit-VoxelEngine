@@ -50,25 +50,29 @@ output_path=
 [projectfiles]
 FILE_0=camera.agc;-1
 FILE_1=constants.agc;-1
-FILE_2=json.agc;-1
-FILE_3=main.agc;-1
-FILE_4=noise.agc;-1
-FILE_5=voxel.agc;-1
-FILE_6=core.agc;-1
+FILE_2=core.agc;-1
+FILE_3=json.agc;-1
+FILE_4=main.agc;-1
+FILE_5=noise.agc;-1
+FILE_6=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;camera.agc;62;0
-FILE_NAME_1=0;constants.agc;9;1
-FILE_NAME_2=0;json.agc;8;2
-FILE_NAME_3=0;main.agc;86;3
-FILE_NAME_4=0;noise.agc;0;4
-FILE_NAME_5=0;voxel.agc;312;5
-FILE_NAME_6=1;core.agc;0;6
+FILE_NAME_0=0;camera.agc;58;0
+FILE_NAME_1=0;constants.agc;17;1
+FILE_NAME_2=0;core.agc;0;2
+FILE_NAME_3=0;json.agc;8;3
+FILE_NAME_4=0;main.agc;45;4
+FILE_NAME_5=0;noise.agc;0;5
+FILE_NAME_6=0;voxel.agc;259;6
 
 [watchvariables]
 watch_variable=@Version;
-watch_variable=ChunkSize;
-watch_variable=X;
-watch_variable=Y;
-watch_variable=Z;
+watch_variable=Border.Min.X;
+watch_variable=CubeZ;
+watch_variable=LocalX;
+watch_variable=LocalY;
+watch_variable=LocalZ;
+watch_variable=OffsetX;
+watch_variable=Voxel_ChunkSize;
+watch_variable=Width;
 

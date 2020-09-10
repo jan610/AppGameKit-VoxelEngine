@@ -44,18 +44,31 @@ function ControlCamera()
 	// rotate the camera
 	PointerX#=GetPointerX()
 	PointerY#=GetPointerY()
-
-    if GetRawMouseMiddlePressed()=1
-        PointerStartX#=PointerX#
-        PointerStartY#=PointerY#
-		CameraAngleX#=GetCameraAngleX(1)
-		CameraAngleY#=GetCameraAngleY(1)
-    endif
-
-    if GetRawMouseMiddleState()=1
-        PointerDragX#=(PointerX#-PointerStartX#)
-        PointerDragY#=(PointerY#-PointerStartY#)
-    endif
+	if GetKeyboardExists()=1
+	    if GetRawMouseMiddlePressed()=1
+	        PointerStartX#=PointerX#
+	        PointerStartY#=PointerY#
+			CameraAngleX#=GetCameraAngleX(1)
+			CameraAngleY#=GetCameraAngleY(1)
+	    endif
+	
+	    if GetRawMouseMiddleState()=1
+	        PointerDragX#=(PointerX#-PointerStartX#)
+	        PointerDragY#=(PointerY#-PointerStartY#)
+	    endif
+	else
+	    if GetPointerPressed()=1
+	        PointerStartX#=PointerX#
+	        PointerStartY#=PointerY#
+			CameraAngleX#=GetCameraAngleX(1)
+			CameraAngleY#=GetCameraAngleY(1)
+	    endif
+	
+	    if GetPointerState()=1
+	        PointerDragX#=(PointerX#-PointerStartX#)
+	        PointerDragY#=(PointerY#-PointerStartY#)
+	    endif
+	endif
     
     CameraAngleNewX#=Core_CurveAngle(CameraAngleNewX#,CameraAngleX#+PointerDragY#,7.0)
     CameraAngleNewY#=Core_CurveAngle(CameraAngleNewY#,CameraAngleY#+PointerDragX#,7.0)
