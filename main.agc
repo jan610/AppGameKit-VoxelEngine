@@ -112,7 +112,7 @@ SetObjectCollisionMode(PreviewObjectID,0)
 //~SetAmbientColor(8,8,8)
 
 
-//~ChunkUpdateSwitch=1
+ChunkUpdateSwitch=1
 do
     OldCameraX#=GetCameraX(1)
     OldCameraY#=GetCameraY(1)
