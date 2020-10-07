@@ -70,8 +70,12 @@ FILE_NAME_7=0;controller.agc;113;7
 
 [watchvariables]
 watch_variable=@Version;
-watch_variable=ChunkSize;
-watch_variable=X;
-watch_variable=Y;
-watch_variable=Z;
+watch_variable=Border.Min.X;
+watch_variable=CubeZ;
+watch_variable=LocalX;
+watch_variable=LocalY;
+watch_variable=LocalZ;
+watch_variable=OffsetX;
+watch_variable=Voxel_ChunkSize;
+watch_variable=Width;
 

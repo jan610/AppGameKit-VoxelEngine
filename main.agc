@@ -30,6 +30,7 @@ SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobi
 SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
+SetPrintSize(16)
 
 SetAntialiasMode(1)
 SetCameraRange(1,0.25,100)
@@ -39,6 +40,8 @@ SetSkyBoxVisible(1)
 SetGenerateMipmaps(0)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
+
+Create3DPhysicsWorld(5)
 
 //~local Subimages as SubimageData[]
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
@@ -99,6 +102,7 @@ do
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
 
+	
  	PointerX#=Get3DVectorXFromScreen(GetPointerX(),GetPointerY())
 	PointerY#=Get3DVectorYFromScreen(GetPointerX(),GetPointerY())
 	PointerZ#=Get3DVectorZFromScreen(GetPointerX(),GetPointerY())
@@ -151,8 +155,62 @@ do
 			BlockType=Voxel_RemoveCubeFromObject(Faceimages,World,HitGridX,HitGridY,HitGridZ)
 		endif
 	endif
+	
+	if GetRawKeyPressed(KEY_SPACE)
+		if HitObjectID>0
+			ExplosionRadius=2
+			HitGridX=round(HitPositionX#-HitNormalX#*0.5)
+			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
+			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
+			
+			CubeList as Int3Data[]
+			TempCubePos as Int3Data
+			for CubeX=HitGridX-ExplosionRadius to HitGridX+ExplosionRadius
+				for CubeY=HitGridY-ExplosionRadius to HitGridY+ExplosionRadius
+					for CubeZ=HitGridZ-ExplosionRadius to HitGridZ+ExplosionRadius
+						DistX=CubeX-HitGridX
+						DistY=CubeY-HitGridY
+						DistZ=CubeZ-HitGridZ
+						Dist#=sqrt(DistX*DistX+DistY*DistY+DistZ*DistZ)
+						if Dist#<=ExplosionRadius+0.5 and World.Terrain[CubeX,CubeY,CubeZ].BlockType>0
+							TempCubePos.X=CubeX
+							TempCubePos.Y=CubeY
+							TempCubePos.Z=CubeZ
+							CubeList.insert(TempCubePos)
+						endif
+					next CubeZ
+				next CubeY
+			next CubeX
+			
+			Voxel_RemoveCubeListFromObject(Faceimages,World,CubeList)
+			
+			for index=CubeList.length to 0 step -1
+				X=CubeList[index].X
+				Y=CubeList[index].Y
+				Z=CubeList[index].Z
+				CubeList.remove(index)
+				
+				ObjectID=CreateObjectBox(0.9,0.9,0.9)
+				SetObjectPosition(ObjectID,X,Y,Z)
+				Create3DPhysicsDynamicBody(ObjectID)
+				SetObjectShapeBox(ObjectID)
+//~				SetObjectColor(ObjectID,26,71,11,255)
+				
+				DistX=X-HitGridX
+				DistY=1.0+Y-HitGridY
+				DistZ=Z-HitGridZ
+				Dist#=sqrt(DistX*DistX+DistY*DistY+DistZ*DistZ)
+				DirX#=DistX/Dist#
+				DirY#=DistY/Dist#
+				DirZ#=DistZ/Dist#
+				VectorID=CreateVector3(DirX#,DirY#,DirZ#)
+				SetObject3DPhysicsLinearVelocity(ObjectID,VectorID,50)
+				DeleteVector3(VectorID)
+			next index
+		endif
+	endif
 
-    Print("FPS: "+Str(ScreenFPS(),0))
+  Print("FPS: "+Str(ScreenFPS(),0))
     
 	Voxel_Controller_Keyboard()
 
@@ -163,5 +221,18 @@ do
 		Print("Light Value: "+str(LightValue))
 		Print("Chunk Updating: "+str(ChunkUpdateSwitch))
 	endif
-    Sync()
+
+  // TODO A complete Logging by pressing any key
+    print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
+  print("Cube; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+  print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
+  print("Object ID: "+str(HitObjectID))
+  print("Block Type: "+str(BlockType))
+  print("Light Value: "+str(LightValue))
+  print("Chunk Updating: "+str(ChunkUpdateSwitch))
+  Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
+
+  Step3DPhysicsWorld()
+	
+  Sync()
 loop

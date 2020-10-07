@@ -2,6 +2,13 @@
 // File: constants.agc
 // Created: 20-08-22
 
+// Default world and terrain files
+
+#constant WORLD_JSON = "world.json"
+#constant TERRAIN_IMG = "terrain.png"
+#constant TERRAIN_JSON = "terrain.json"
+#constant PREVIEW_IMG = "preview.png"
+
 // Keymapping
 
 #constant KEY_BACK 8
