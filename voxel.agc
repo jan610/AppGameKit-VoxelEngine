@@ -1,27 +1,38 @@
+// Project: AppGameKit-VoxelEngine
+// File: noise.agc
+// Created: 20-07-31
+
+#constant FaceFront	1
+#constant FaceBack	2
+#constant FaceLeft	3
+#constant FaceRight	4
+#constant FaceUp		5
+#constant FaceDown	6
+
 // Data Types able to represent any AGK mesh
 type Vec4Data
-	X#
-	Y#
-	Z#
-	W#
+	X# as float
+	Y# as float
+	Z# as float
+	W# as float
 endtype
 
 type Vec3Data
-	X#
-	Y#
-	Z#
+	X# as float
+	Y# as float
+	Z# as float
 endtype
 
 type Vec2Data
-	X#
-	Y#
+	X# as float
+	Y# as float
 endtype
 
 type RGBAData
-	Red#
-	Green#
-	Blue#
-	Alpha#
+	Red# as float
+	Green# as float
+	Blue# as float
+	Alpha# as float
 endtype
 
 type VertexData
@@ -37,13 +48,6 @@ type ObjectData
 	Vertex as VertexData[]
 	Index as integer[]
 endtype
-
-#constant FaceFront	1
-#constant FaceBack	2
-#constant FaceLeft	3
-#constant FaceRight	4
-#constant FaceUp		5
-#constant FaceDown	6
 
 type WorldData
 	Terrain as TerrainData[0,0,0]
@@ -384,9 +388,10 @@ function Voxel_AddCubeToObject(Faceimages ref as FaceimageData,World ref as Worl
 	X=Voxel_Clamp(X,1,World.Terrain.length-1)
 	Y=Voxel_Clamp(Y,1,World.Terrain[0].length-1)
 	Z=Voxel_Clamp(Z,1,World.Terrain[0,0].length-1)
-	
-	World.Terrain[X,Y,Z].BlockType=BlockType
-	Voxel_AddLight(World,X,Y,Z)
+  
+	local Result as integer
+	Result=World.Terrain[X,Y,Z].BlockType
+	World.Terrain[X,Y,Z].BlockType=0
 	
 	ChunkX=round((X-1)/Voxel_ChunkSize)
 	ChunkY=round((Y-1)/Voxel_ChunkSize)
@@ -415,7 +420,7 @@ function Voxel_AddCubeToObject(Faceimages ref as FaceimageData,World ref as Worl
 	if CubeZ=1
 		if ChunkZ-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ-1)
 	endif
-endfunction
+endfunction Result
 
 function Voxel_RemoveCubeFromObject(Faceimages ref as FaceimageData,World ref as WorldData,X,Y,Z)
 	X=Voxel_Clamp(X,1,World.Terrain.length-1)
@@ -1090,7 +1095,7 @@ function Voxel_CreateMeshMemblock(VertexCount,IndexCount)
 	VertexSize=3*4+3*4+2*4+4*1+3*4+3*4
 	VertexOffset=100
 	IndexOffset=VertexOffset+(VertexCount*VertexSize)
-
+	local MemblockID as integer
 	MemblockID=Creatememblock(IndexOffset+(IndexCount*4))
 	SetMemblockInt(MemblockID,0,VertexCount)
 	SetMemblockInt(MemblockID,4,IndexCount)

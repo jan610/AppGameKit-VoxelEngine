@@ -1,3 +1,7 @@
+// Project: AppGameKit-VoxelEngine
+// File: noise.agc
+// Created: 20-07-31
+
 type GradType
 	x as integer
 	y as integer
@@ -56,7 +60,9 @@ function Noise_Init()
 	Grads[11].z = -1
 	
 	global grad3 as GradType[12]
-	for T=0 TO 11
+	
+	local t as integer
+	for t=0 TO 11
 		grad3[T] = Grads[T]
 	next T
 	
@@ -91,6 +97,7 @@ function Noise_Seed(seedVal)
 	
 	seedVal = floor(seedVal)
 	if(seedVal < 256)
+		local seedVal2 as integer
 		seedVal2 = seedVal << 8
 		seedVal = seedVal || seedVal2
 	endif
@@ -125,6 +132,7 @@ G3 = 1.0/6
 
 //Here self is the Grad Type
 function Noise_Dot2(self as GradType, x#, y#)
+	local dot2Val# as float
 	dot2Val# = ((self.x*x#) + (self.y*y#))
 endfunction dot2Val#
 
@@ -390,17 +398,21 @@ endfunction 32 * (n0 + n1 + n2 + n3)
 
 // ##### Perlin noise stuff
 function Noise_Fade(t#)
+	local fadeVal# as float
 	fadeVal# = t#*t#*t#*(t#*(t#*6.0-15.0)+10.0)
 endfunction fadeVal#
 
 // Function to linearly interpolate between a0 and a1
 // Weight w should be in the range [0.0, 1.0]
 function Noise_Lerp(a0#, a1#, w#)
+	local lerpVal# as float
 	lerpVal# = ((1.0 - w#) * a0#) + w# * a1#
 endfunction lerpVal#
 
 function Noise_Perlin2(xin#, yin#)
 	// Find unit grid cell containing point
+	local X as integer
+	local Y as integer
 	X = trunc(xin#)
 	Y = trunc(yin#)
 	
@@ -413,20 +425,29 @@ function Noise_Perlin2(xin#, yin#)
 	Y = Y && 255
 	
 	// Calculate noise contributions from each of the four corners
+	local n00# as float
+	local n01# as float
+	local n10# as float
+	local n11# as float
 	n00# = Noise_dot2(gradP[trunc(X+perm[trunc(Y)])], xin#, yin#)
 	n01# = Noise_dot2(gradP[trunc(X+perm[trunc(Y+1.0)])], xin#, yin#-1.0)
 	n10# = Noise_dot2(gradP[trunc(X+1.0+perm[trunc(Y)])], xin#-1.0, yin#)
 	n11# = Noise_dot2(gradP[trunc(X+1.0+perm[trunc(Y+1.0)])], xin#-1.0, yin#-1.0)
 	
 	// Compute the fade curve value for x
+	local u# as float
 	u# = Noise_Fade(xin#)
 	
 	// Interpolate the four results
+	local retValue# as float
 	retValue# = Noise_Lerp(Noise_Lerp(n00#, n10#, u#),Noise_Lerp(n01#, n11#, u#),Noise_Fade(yin#))
 endfunction retValue#
 
 function Noise_Perlin3(xin#, yin#, zin#)
 	// Find unit grid cell containing point
+	local X as integer
+	local Y as integer
+	local Z as integer
 	X = trunc(xin#)
 	Y = trunc(yin#)
 	Z = trunc(zin#)
@@ -441,7 +462,15 @@ function Noise_Perlin3(xin#, yin#, zin#)
 	Y = Y && 255
 	Z = Z && 255
 	
-	// Calculate noise contributions from each of the eight corners	
+	// Calculate noise contributions from each of the eight corners
+	local n000# as float
+	local n001# as float
+	local n010# as float
+	local n011# as float
+	local n100# as float
+	local n101# as float
+	local n110# as float
+	local n111# as float
 	n000# = Noise_dot3(gradP[floor(X+  perm[floor(Y+  perm[floor(Z  )])])], xin#,   yin#,     zin#)
 	n001# = Noise_dot3(gradP[floor(X+  perm[floor(Y+  perm[floor(Z+1)])])], xin#,   yin#,   zin#-1)
 	n010# = Noise_dot3(gradP[floor(X+  perm[floor(Y+1+perm[floor(Z  )])])], xin#,   yin#-1,   zin#)
@@ -452,10 +481,14 @@ function Noise_Perlin3(xin#, yin#, zin#)
 	n111# = Noise_dot3(gradP[floor(X+1+perm[floor(Y+1+perm[floor(Z+1)])])], xin#-1, yin#-1, zin#-1)
 	
 	// Compute the fade curve value for x, y, z
+	local u# as float
+	local v# as float
+	local w# as float
 	u# = Noise_Fade(xin#)
 	v# = Noise_Fade(yin#)
 	w# = Noise_Fade(zin#)
 	
 	// Interpolate
+	local retValue# as float
 	retValue# = Noise_lerp(Noise_lerp(Noise_lerp(n000#, n100#, u#),Noise_lerp(n001#, n101#, u#), w#),Noise_lerp(Noise_lerp(n010#, n110#, u#),Noise_lerp(n011#, n111#, u#), w#),v#)
 endfunction retValue#

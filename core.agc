@@ -1,11 +1,15 @@
+// Project: AppGameKit-VoxelEngine
 // File: core.agc
-// Created: 20-09-02
+// Created: 20-07-31
 
-function Core_StringInsertAtDelemiter(String$,Insert$,Delemiter$)
-	Left$=GetStringToken(String$,Delemiter$,1)
-	Right$=GetStringToken(String$,Delemiter$,2)
-	NewString$=Left$+Insert$+Right$
-endfunction NewString$
+function Core_StringInsertAtDelemiter(string$,insert$,delimiter$)
+	local left$ as string
+	local right$ as string
+	local str$ as string
+	left$=GetStringToken(string$,delimiter$,1)
+	right$=GetStringToken(string$,delimiter$,2)
+	str$=left$+insert$+right$
+endfunction str$
 
 function Core_CurveValue(current# as float, destination# as float, speed# as float)
     local diff# as float

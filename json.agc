@@ -2,6 +2,10 @@
 // File: json.agc
 // Created: 20-08-15
 
+// Default world and terrain files
+
+#constant VOXEL_WORLD_JSON = "world.json"
+#constant VOXEL_TERRAIN_JSON = "terrain.json"
 
 /*
  * Load a JSON file
