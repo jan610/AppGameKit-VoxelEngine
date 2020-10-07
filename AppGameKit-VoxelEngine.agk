@@ -57,13 +57,9 @@ FILE_5=noise.agc;-1
 FILE_6=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;camera.agc;58;0
-FILE_NAME_1=0;constants.agc;17;1
-FILE_NAME_2=0;core.agc;0;2
-FILE_NAME_3=0;json.agc;8;3
-FILE_NAME_4=0;main.agc;45;4
-FILE_NAME_5=0;noise.agc;0;5
-FILE_NAME_6=0;voxel.agc;259;6
+FILE_NAME_0=0;main.agc;48;0
+FILE_NAME_1=0;noise.agc;0;1
+FILE_NAME_2=0;voxel.agc;275;2
 
 [watchvariables]
 watch_variable=@Version;

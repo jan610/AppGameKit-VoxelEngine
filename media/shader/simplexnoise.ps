@@ -3,7 +3,8 @@ uniform sampler2D texture0;
 varying mediump vec2 uvVarying;
 
 uniform vec2 agk_resolution;
-uniform vec4 uvOffset;
+uniform vec3 uvOffset;
+//~uniform float chunkSize;
 
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
@@ -11,7 +12,34 @@ float snoise(vec3 v);
 
 void main()
 {	
-	float noise = snoise(uvOffset.xyz+vec3(uvVarying,uvOffset.w));
+	vec2 pixelSize = 1.0 / vec2(16.0,16.0*4.0);
+	float tileSize =  16.0 * pixelSize.y;
+	float squareSize = sqrt(16.0);
+//~	vec2 uv = fract(uvVarying * squareSize);
+	vec2 uv = fract(uvVarying * vec2(1.0,squareSize));
+	
+//~	float noise = 0.0;
+//~	for (int z = 0; z < 16; z++)
+//~	{
+//~		vec2 offset = vec2(0.5) + vec2(mod(float(z), squareSize), floor(float(z)  / squareSize));
+//~		float tile = step(abs(offset.x * tileSize - uvVarying.x), tileSize*0.5) * step(abs(offset.y * tileSize - uvVarying.y), tileSize*0.5);
+//~		float depth = float(z) * pixelSize.x;
+//~		
+//~		noise += snoise(uvOffset + vec3(uv,depth)) * tile;
+//~	}
+
+	vec4 noise = vec4(0.0);
+	for (int z = 0; z <= 16; z=z+4)
+	{
+		float tile = step(abs((floor(float(z)/squareSize)) * tileSize - uvVarying.y), tileSize);
+		
+		noise += (tile > 0.0) ? vec4(
+		snoise(uvOffset + vec3(uv,float(z+0) * pixelSize.x)),
+		snoise(uvOffset + vec3(uv,float(z+1) * pixelSize.x)),
+		snoise(uvOffset + vec3(uv,float(z+2) * pixelSize.x)),
+		snoise(uvOffset + vec3(uv,float(z+3) * pixelSize.x))) : vec4(0.0);
+    }
+
 	gl_FragColor = vec4(noise);
 }
 
