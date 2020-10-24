@@ -54,12 +54,16 @@ FILE_2=core.agc;-1
 FILE_3=json.agc;-1
 FILE_4=main.agc;-1
 FILE_5=noise.agc;-1
-FILE_6=voxel.agc;-1
+FILE_6=media%2Fterrain.json;-1
+FILE_7=voxel.agc;-1
+FILE_8=threadnoise.agc;-1
 
 [files]
-FILE_NAME_0=0;main.agc;48;0
+FILE_NAME_0=0;main.agc;12;0
 FILE_NAME_1=0;noise.agc;0;1
-FILE_NAME_2=0;voxel.agc;275;2
+FILE_NAME_2=0;media%2Fterrain.json;1611;2
+FILE_NAME_3=0;voxel.agc;292;3
+FILE_NAME_4=1;threadnoise.agc;0;4
 
 [watchvariables]
 watch_variable=@Version;
@@ -69,6 +73,7 @@ watch_variable=LocalX;
 watch_variable=LocalY;
 watch_variable=LocalZ;
 watch_variable=OffsetX;
+watch_variable=Voxel_ChunkPosition.length;
 watch_variable=Voxel_ChunkSize;
 watch_variable=Width;
 

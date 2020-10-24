@@ -1625,6 +1625,14 @@
             "rightid": 8
         }, 
         {
+            "frontid": 120, 
+            "backid": 118, 
+            "upid": 102, 
+            "downid": 118, 
+            "leftid": 118, 
+            "rightid": 118
+        },
+        {
             "frontid": 255, 
             "backid": 255, 
             "upid": 255, 
