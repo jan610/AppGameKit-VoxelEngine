@@ -839,12 +839,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			corner=(World.Terrain[X-1,Y-1,Z+1].BlockType=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
+			if AO0+AO2>AO1+AO3 then Flipped=1
+			
 			AO0=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO0
 			AO1=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO1
 			AO2=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO2
 			AO3=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO3
 			
-			Voxel_AddFaceToObject(Object,TempSubimages[0],CubeX,CubeY,CubeZ,FaceFront,AO0,AO1,AO2,AO3)
+			Voxel_AddFaceToObject(Object,TempSubimages[0],CubeX,CubeY,CubeZ,FaceFront,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if World.Terrain[X,Y,Z-1].BlockType=0			
 			side1=(World.Terrain[X,Y+1,Z-1].BlockType=0)
@@ -867,12 +869,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			corner=(World.Terrain[X+1,Y-1,Z-1].BlockType=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
+			if AO0+AO2>AO1+AO3 then Flipped=1
+			
 			AO0=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO0
 			AO1=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO1
 			AO2=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO2
 			AO3=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO3
 			
-			Voxel_AddFaceToObject(Object,TempSubimages[1],CubeX,CubeY,CubeZ,FaceBack,AO0,AO1,AO2,AO3)
+			Voxel_AddFaceToObject(Object,TempSubimages[1],CubeX,CubeY,CubeZ,FaceBack,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if World.Terrain[X+1,Y,Z].BlockType=0	
 			side1=(World.Terrain[X+1,Y+1,Z].BlockType=0)
@@ -895,12 +899,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			corner=(World.Terrain[X+1,Y-1,Z+1].BlockType=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
+			if AO0+AO2>AO1+AO3 then Flipped=1
+			
 			AO0=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO0
 			AO1=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO1
 			AO2=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO2
 			AO3=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO3
 			
-			Voxel_AddFaceToObject(Object,TempSubimages[2],CubeX,CubeY,CubeZ,FaceRight,AO0,AO1,AO2,AO3)
+			Voxel_AddFaceToObject(Object,TempSubimages[2],CubeX,CubeY,CubeZ,FaceRight,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if World.Terrain[X-1,Y,Z].BlockType=0		
 			side1=(World.Terrain[X-1,Y+1,Z].BlockType=0)
@@ -923,12 +929,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			corner=(World.Terrain[X-1,Y-1,Z-1].BlockType=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
+			if AO0+AO2>AO1+AO3 then Flipped=1
+			
 			AO0=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO0
 			AO1=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO1
 			AO2=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO2
 			AO3=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO3
 			
-			Voxel_AddFaceToObject(Object,TempSubimages[3],CubeX,CubeY,CubeZ,FaceLeft,AO0,AO1,AO2,AO3)
+			Voxel_AddFaceToObject(Object,TempSubimages[3],CubeX,CubeY,CubeZ,FaceLeft,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if World.Terrain[X,Y+1,Z].BlockType=0		
 			side1=(World.Terrain[X,Y+1,Z+1].BlockType=0)
@@ -951,12 +959,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			corner=(World.Terrain[X+1,Y+1,Z-1].BlockType=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
+			if AO0+AO2>AO1+AO3 then Flipped=1
+			
 			AO0=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO0
 			AO1=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO1
 			AO2=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO2
 			AO3=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO3
 			
-			Voxel_AddFaceToObject(Object,TempSubimages[4],CubeX,CubeY,CubeZ,FaceUp,AO0,AO1,AO2,AO3)
+			Voxel_AddFaceToObject(Object,TempSubimages[4],CubeX,CubeY,CubeZ,FaceUp,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if World.Terrain[X,Y-1,Z].BlockType=0			
 			side1=(World.Terrain[X,Y-1,Z+1].BlockType=0)
@@ -979,12 +989,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			corner=(World.Terrain[X-1,Y-1,Z-1].BlockType=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
+			if AO0+AO2>AO1+AO3 then Flipped=1
+			
 			AO0=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO0
 			AO1=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO1
 			AO2=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO2
 			AO3=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO3
 			
-			Voxel_AddFaceToObject(Object,TempSubimages[5],CubeX,CubeY,CubeZ,FaceDown,AO0,AO1,AO2,AO3)
+			Voxel_AddFaceToObject(Object,TempSubimages[5],CubeX,CubeY,CubeZ,FaceDown,AO0,AO1,AO2,AO3,Flipped)
 		endif
 	endif
 endfunction
@@ -994,7 +1006,7 @@ function Voxel_GetVertexAO(side1, side2, corner)
 endfunction 3 - (side1 + side2 + corner)
 
 // Populate the MeshObject with Data
-function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as SubimageData,X,Y,Z,FaceDir,AO0,AO1,AO2,AO3)
+function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as SubimageData,X,Y,Z,FaceDir,AO0,AO1,AO2,AO3,Flipped)
 	TempVertex as VertexData[3]
 	HalfFaceSize#=0.5	
 	TileCount=16
@@ -1220,12 +1232,21 @@ function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as Subimag
 	Object.Vertex.insert(TempVertex[3])
 	
 	VertexID=Object.Vertex.length-3
-	Object.Index.insert(VertexID+0)
-	Object.Index.insert(VertexID+1)
-	Object.Index.insert(VertexID+2)
-	Object.Index.insert(VertexID+2)
-	Object.Index.insert(VertexID+3)
-	Object.Index.insert(VertexID+0)
+	if Flipped=0
+		Object.Index.insert(VertexID+0)
+		Object.Index.insert(VertexID+1)
+		Object.Index.insert(VertexID+2)
+		Object.Index.insert(VertexID+2)
+		Object.Index.insert(VertexID+3)
+		Object.Index.insert(VertexID+0)
+	else
+		Object.Index.insert(VertexID+3)
+		Object.Index.insert(VertexID+0)
+		Object.Index.insert(VertexID+1)
+		Object.Index.insert(VertexID+1)
+		Object.Index.insert(VertexID+2)
+		Object.Index.insert(VertexID+3)
+	endif
 endfunction
 
 function Voxel_SetObjectFacePosition(Vertex ref as VertexData,X#,Y#,Z#)

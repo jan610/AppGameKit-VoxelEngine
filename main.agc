@@ -44,7 +44,7 @@ Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
 
 World as WorldData
 
-Voxel_Init(World,16,256,32,256,TERRAIN_IMG)
+Voxel_Init(World,16,256,16,256,TERRAIN_IMG)
 
 Noise_Init()
 Noise_Seed(257)
