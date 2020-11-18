@@ -48,15 +48,37 @@ endtype
 #constant FaceUp		5
 #constant FaceDown	6
 
+
 type WorldData
-	Terrain as TerrainData[0,0,0]
-	Chunk as ChunkData[0,0,0]
+    Chunk as ChunkData[-1]
+    ChunkID as integer[-1,-1,-1]
 endtype
 
-type TerrainData
-	BlockType as integer
-	LightValue as integer
+type ChunkData
+    ObjectID as integer
+    Blocks as BlockData[15,15,15]
 endtype
+
+type BlockData
+    BlockType as integer
+    LightValue as integer
+endtype
+
+//~type WorldData
+//~	Terrain as TerrainData[0,0,0]
+//~	Chunk as ChunkData[0,0,0]
+//~endtype
+
+//~type TerrainData
+//~	BlockType as integer
+//~	LightValue as integer
+//~endtype
+
+//~type ChunkData
+//~	Border as BorderData
+//~	ObjectID as integer
+//~	Visible as integer
+//~endtype
 
 type SubimageData
 	X as integer
@@ -90,21 +112,17 @@ type BorderData
 	Max as Int3Data
 endtype
 
-type ChunkData
-	Border as BorderData
-	ObjectID as integer
-	Visible as integer
-endtype
-
 type MemblockData
 	GrassMemblockID as integer
 	CaveMemblockID as integer
 	IronMemblockID as integer
+	Position as Int3Data
 endtype
 
 global Voxel_ChunkMemblock as MemblockData[]
 global Voxel_ChunkPosition as Int3Data[]
 global Voxel_Neighbors as Int3Data[5]
+global TempBlocks as ChunkData
 
 global Voxel_ChunkSize
 global Voxel_WorldSizeX
@@ -127,32 +145,27 @@ global Voxel_DebugMeshBuildingTime#
 // Functions
 
 // Initialise the Voxel Engine
-function Voxel_Init(World ref as WorldData,ChunkSize,TerrainSizeX,TerrainSizeY,TerrainSizeZ,File$)
+function Voxel_Init(World ref as WorldData,ChunkSize,WorldSizeX,WorldSizeY,WorldSizeZ,File$)
 	Voxel_DiffuseImageID=LoadImage(File$)
 //~	Voxel_NormalImageID=LoadImage(StringInsertAtDelemiter(File$,"_n.","."))
 	
 	Voxel_ShaderID=LoadShader("shader/vertex.vs","shader/fragment.ps")
 	
 	Voxel_ChunkSize=ChunkSize
-	Voxel_WorldSizeX=trunc((TerrainSizeX+1)/Voxel_ChunkSize)-1
-	Voxel_WorldSizeY=trunc((TerrainSizeY+1)/Voxel_ChunkSize)-1
-	Voxel_WorldSizeZ=trunc((TerrainSizeZ+1)/Voxel_ChunkSize)-1
-	
-	World.Terrain.length=TerrainSizeX+1
-	for X=0 to World.Terrain.length
-		World.Terrain[X].length=TerrainSizeY+1
-		for Y=0 to World.Terrain[X].length
-			World.Terrain[X,Y].length=TerrainSizeZ+1
+	Voxel_WorldSizeX=WorldSizeX*Voxel_ChunkSize
+	Voxel_WorldSizeY=WorldSizeY*Voxel_ChunkSize
+	Voxel_WorldSizeZ=WorldSizeZ*Voxel_ChunkSize
+		
+	World.ChunkID.length=WorldSizeX
+	for X=0 to World.ChunkID.length
+		World.ChunkID[X].length=WorldSizeY
+		for Y=0 to World.ChunkID[X].length
+			World.ChunkID[X,Y].length=WorldSizeZ
+			for Z=0 to World.ChunkID[X,Y].length
+				World.ChunkID[X,Y,Z]=-1
+			next Z
 		next Y
-	next X
-	
-	World.Chunk.length=Voxel_WorldSizeX
-	for X=0 to World.Chunk.length
-		World.Chunk[X].length=Voxel_WorldSizeY
-		for Y=0 to World.Chunk[X].length
-			World.Chunk[X,Y].length=Voxel_WorldSizeZ
-		next Y
-	next X
+	next X	
 	
 	Voxel_Neighbors[0].x=1
 	Voxel_Neighbors[0].y=0
@@ -218,151 +231,172 @@ function Voxel_GetEntryInArray(Array ref as Int3Data[],Entry as Int3Data)
 endfunction -1
 
 function Voxel_UpdateObjects(FaceImages ref as FaceimageData,World ref as WorldData,PosX,PosY,PosZ,ViewDistance)	
-	CameraChunkX=round((PosX-1)/Voxel_ChunkSize)
-	CameraChunkY=round((PosY-1)/Voxel_ChunkSize)
-	CameraChunkZ=round((PosZ-1)/Voxel_ChunkSize)
+	CameraChunkX=round(PosX/Voxel_ChunkSize)
+	CameraChunkY=round(PosY/Voxel_ChunkSize)
+	CameraChunkZ=round(PosZ/Voxel_ChunkSize)
 	
 	Frecueny2D#=32.0
 	Frecueny3DCave#=10.0
 	Frecueny3DIron#=2.0
-	DirtLayerHeight=3
 	
 	local TempChunkMemblock as MemblockData
-	local TempChunkPosition as Int3Data
 	for Dist=0 to ViewDistance
-		MinX=Voxel_Clamp(CameraChunkX-Dist,0,Voxel_WorldSizeX)
-		MinY=Voxel_Clamp(CameraChunkY-Dist,0,Voxel_WorldSizeY)
-		MinZ=Voxel_Clamp(CameraChunkZ-Dist,0,Voxel_WorldSizeZ)
-		MaxX=Voxel_Clamp(CameraChunkX+Dist,0,Voxel_WorldSizeX)
-		MaxY=Voxel_Clamp(CameraChunkY+Dist,0,Voxel_WorldSizeY)
-		MaxZ=Voxel_Clamp(CameraChunkZ+Dist,0,Voxel_WorldSizeZ)
+		ViewMinX=Voxel_Clamp(CameraChunkX-Dist,0,World.ChunkID.length)
+		ViewMinY=Voxel_Clamp(CameraChunkY-Dist,0,World.ChunkID[0].length)
+		ViewMinZ=Voxel_Clamp(CameraChunkZ-Dist,0,World.ChunkID[0,0].length)
+		ViewMaxX=Voxel_Clamp(CameraChunkX+Dist,0,World.ChunkID.length)
+		ViewMaxY=Voxel_Clamp(CameraChunkY+Dist,0,World.ChunkID[0].length)
+		ViewMaxZ=Voxel_Clamp(CameraChunkZ+Dist,0 ,World.ChunkID[0,0].length)
 		
-		for ChunkY=MinY to MaxY
-			for ChunkZ=MinZ to MaxZ
-				for ChunkX=MinX to MaxX
-					if World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID=0
-						TempChunkPosition.X=ChunkX
-						TempChunkPosition.Y=ChunkY
-						TempChunkPosition.Z=ChunkZ
-						if Voxel_GetEntryInArray(Voxel_ChunkPosition,TempChunkPosition)=-1
+		for ChunkY=ViewMinY to ViewMaxY
+			for ChunkZ=ViewMinZ to ViewMaxZ
+				for ChunkX=ViewMinX to ViewMaxX
+					if World.ChunkID[ChunkX,ChunkY,ChunkZ]=-1
+						
+						World.Chunk.insert(TempBlocks)
+						ChunkID=World.Chunk.length	
+						World.ChunkID[ChunkX,ChunkY,ChunkZ]=ChunkID		
 							
-							World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X=ChunkX*Voxel_ChunkSize+1
-							World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y=ChunkY*Voxel_ChunkSize+1
-							World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z=ChunkZ*Voxel_ChunkSize+1
-							World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
-							World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
-							World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
-							
-							MinX=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X-1
-							MinY=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y-1
-							MinZ=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z-1
-							Width=1+(World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X+1)-MinX
-							Height=1+(World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y+1)-MinY
-							Depth=1+(World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z+1)-MinZ
-							
-							NoiseGrassMemblockID=TN_CreateMemblockNoise2D(Frecueny2D#,MinX,MinZ,Width,Depth)
-							NoiseCaveMemblockID=TN_CreateMemblockNoise3D(Frecueny3DCave#,MinX,MinY,MinZ,Width,Height,Depth)
-							NoiseIronMemblockID=TN_CreateMemblockNoise3D(Frecueny3DIron#,MinX,MinY,MinZ,Width,Height,Depth)
-	
-							TempChunkMemblock.GrassMemblockID=NoiseGrassMemblockID
-							TempChunkMemblock.CaveMemblockID=NoiseCaveMemblockID
-							TempChunkMemblock.IronMemblockID=NoiseIronMemblockID
-							
-							Voxel_ChunkMemblock.insert(TempChunkMemblock)
-							Voxel_ChunkPosition.insert(TempChunkPosition)
-						endif
+						MinX=ChunkX*Voxel_ChunkSize
+						MinY=ChunkY*Voxel_ChunkSize
+						MinZ=ChunkZ*Voxel_ChunkSize
+						MaxX=MinX+Voxel_ChunkSize
+						MaxY=MinY+Voxel_ChunkSize
+						MaxZ=MinZ+Voxel_ChunkSize
+						Width=MaxX-MinX
+						Height=MaxY-MinY
+						Depth=MaxZ-MinZ
+
+						NoiseGrassMemblockID=TN_CreateMemblockNoise2D(Frecueny2D#,MinX,MinZ,Width,Depth)
+						NoiseCaveMemblockID=TN_CreateMemblockNoise3D(Frecueny3DCave#,MinX,MinY,MinZ,Width,Height,Depth)
+						NoiseIronMemblockID=TN_CreateMemblockNoise3D(Frecueny3DIron#,MinX,MinY,MinZ,Width,Height,Depth)
+
+						TempChunkMemblock.GrassMemblockID=NoiseGrassMemblockID
+						TempChunkMemblock.CaveMemblockID=NoiseCaveMemblockID
+						TempChunkMemblock.IronMemblockID=NoiseIronMemblockID
+						TempChunkMemblock.Position.X=ChunkX
+						TempChunkMemblock.Position.Y=ChunkY
+						TempChunkMemblock.Position.Z=ChunkZ
+						Voxel_ChunkMemblock.insert(TempChunkMemblock)
 					endif
 				next ChunkX
 			next ChunkZ
 		next ChunkY
 	next Dist
 	
-	if Voxel_ChunkPosition.length>-1
-		ChunkX=Voxel_ChunkPosition[0].X
-		ChunkY=Voxel_ChunkPosition[0].Y
-		ChunkZ=Voxel_ChunkPosition[0].Z
-		Voxel_ChunkPosition.remove(0)
+	DirtLayerHeight=3
+	local TempChunkPosition as Int3Data
+  	if Voxel_ChunkMemblock.length>-1
+		NoiseGrassMemblockID=Voxel_ChunkMemblock[0].GrassMemblockID
+		NoiseCaveMemblockID=Voxel_ChunkMemblock[0].CaveMemblockID
+		NoiseIronMemblockID=Voxel_ChunkMemblock[0].IronMemblockID
+		ChunkX=Voxel_ChunkMemblock[0].Position.X
+		ChunkY=Voxel_ChunkMemblock[0].Position.Y
+		ChunkZ=Voxel_ChunkMemblock[0].Position.Z
+  		Voxel_ChunkMemblock.remove(0)
+  		
+		TempChunkPosition.X=ChunkX
+		TempChunkPosition.Y=ChunkY
+		TempChunkPosition.Z=ChunkZ
+		Voxel_ChunkPosition.insert(TempChunkPosition)
 		
-	  	if World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID=0 and Voxel_ChunkMemblock.length>-1
-			NoiseGrassMemblockID=Voxel_ChunkMemblock[0].GrassMemblockID
-			NoiseCaveMemblockID=Voxel_ChunkMemblock[0].CaveMemblockID
-			NoiseIronMemblockID=Voxel_ChunkMemblock[0].IronMemblockID
-	  		Voxel_ChunkMemblock.remove(0)
-	  				
-			TN_WaitForNoise(NoiseGrassMemblockID)
-			TN_WaitForNoise(NoiseCaveMemblockID)
-			TN_WaitForNoise(NoiseIronMemblockID)
-			
-			Offset2D=0	
-			Offset3D=0
-			for CubeX=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X-1 to World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X+1
-				for CubeZ=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z-1 to World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z+1
-					inc Offset2D,4
-					for CubeY=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y-1 to World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y+1
-						inc Offset3D,4
-						GrassNoise#=(GetMemblockFloat(NoiseGrassMemblockID,Offset2D)+1.0*0.25)*World.Terrain[0].length
-						GrassLayer=(World.Terrain[0].length*0.4)+GrassNoise#/3.0
-						
-						if CubeY=GrassLayer
-							World.Terrain[CubeX,CubeY,CubeZ].BlockType=1
-						elseif CubeY>GrassLayer-DirtLayerHeight and CubeY<=GrassLayer
-							World.Terrain[CubeX,CubeY,CubeZ].BlockType=3
-						elseif CubeY<=GrassLayer-DirtLayerHeight
-							World.Terrain[CubeX,CubeY,CubeZ].BlockType=2
+		TN_WaitForNoise(NoiseGrassMemblockID)
+		TN_WaitForNoise(NoiseCaveMemblockID)
+		TN_WaitForNoise(NoiseIronMemblockID)
 		
-		//~					Offset3D=4+4*((X*Width*Height)+(Y*Height)+Z)
-		//~					IronNoise#=GetMemblockFloat(NoiseCaveMemblockID,Offset3D)+1.0*0.25
-		//~					if IronNoise#>0.68 then World.Terrain[CubeX,CubeY,CubeZ].BlockType=4
-						endif
-						
-						CaveNoise#=GetMemblockFloat(NoiseCaveMemblockID,Offset3D)+1.0*0.25
-						
-						if CaveNoise#>0.5
-							World.Terrain[CubeX,CubeY,CubeZ].BlockType=0
-						endif
-						
-						World.Terrain[CubeX,CubeY,CubeZ].LightValue=8
-					next CubeY
-				next CubeZ
-			next CubeX
-			
-			DeleteMemblock(NoiseGrassMemblockID)
-			DeleteMemblock(NoiseCaveMemblockID)
-			DeleteMemblock(NoiseIronMemblockID)
-	
-			ObjectID=Voxel_CreateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Visible=1
-			
-			if GetObjectExists(ObjectID)
-				Create3DPhysicsStaticBody(ObjectID)
-				SetObjectShapeStaticPolygon(ObjectID)
-			endif
-		else
-			Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-			SetObjectVisible(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID,1)
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Visible=1
-			
-			Delete3DPhysicsBody(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID)
-			Create3DPhysicsStaticBody(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID)
-			SetObjectShapeStaticPolygon(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID)
-		endif
-			
-//~		ObjectID=Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
+		Offset2D=0
+		Offset3D=0
+		ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+		for CubeX=0 to World.Chunk[ChunkID].Blocks.length
+			for CubeZ=0 to World.Chunk[ChunkID].Blocks[0,0].length
+				inc Offset2D,4
+				for CubeY=0 to World.Chunk[ChunkID].Blocks[0].length
+					inc Offset3D,4
+					
+					GrassNoise#=(GetMemblockFloat(NoiseGrassMemblockID,Offset2D)+1.0*0.25)*World.ChunkID[0].length*Voxel_ChunkSize
+					GrassLayer=(World.ChunkID[0].length*Voxel_ChunkSize*0.4)+GrassNoise#/3.0
+					
+					if ChunkY*Voxel_ChunkSize+CubeY=GrassLayer
+						World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=1
+					elseif ChunkY*Voxel_ChunkSize+CubeY>GrassLayer-DirtLayerHeight and ChunkY*Voxel_ChunkSize+CubeY<=GrassLayer
+						World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=3
+					elseif ChunkY*Voxel_ChunkSize+CubeY<=GrassLayer-DirtLayerHeight
+						World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=2
+						/*Offset3D=4+4*((X*Width*Height)+(Y*Height)+Z)
+						IronNoise#=GetMemblockFloat(NoiseCaveMemblockID,Offset3D)+1.0*0.25
+						if IronNoise#>0.68 then World.Chunk[CubeX,CubeY,CubeZ].BlockType=4*/
+					endif
+					
+					CaveNoise#=GetMemblockFloat(NoiseCaveMemblockID,Offset3D)+1.0*0.25
+					
+					if CaveNoise#>0.5+CubeY/(World.ChunkID[0].length*Voxel_ChunkSize+0.0)
+						World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=0
+					endif
+					
+					World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].LightValue=15
+				next CubeY
+			next CubeZ
+		next CubeX
+		
+		DeleteMemblock(NoiseGrassMemblockID)
+		DeleteMemblock(NoiseCaveMemblockID)
+		DeleteMemblock(NoiseIronMemblockID)
 	endif
+	
+//~	if Voxel_ChunkPosition.length>-1
+	for index=0 to Voxel_ChunkPosition.length
+		ChunkX=Voxel_ChunkPosition[index].X
+		ChunkY=Voxel_ChunkPosition[index].Y
+		ChunkZ=Voxel_ChunkPosition[index].Z
+		
+		ViewMinX=round(CameraChunkX-(ViewDistance-3))
+		ViewMinY=round(CameraChunkY-(ViewDistance-3))
+		ViewMinZ=round(CameraChunkZ-(ViewDistance-3))
+		ViewMaxX=round(CameraChunkX+(ViewDistance-3))
+		ViewMaxY=round(CameraChunkY+(ViewDistance-3))
+		ViewMaxZ=round(CameraChunkZ+(ViewDistance-3))
+//~		
+		if ViewMinX<=ChunkX and ChunkX<=ViewMaxX and ViewMinY<=ChunkY and ChunkY<=ViewMaxY and ViewMinZ<=ChunkZ and ChunkZ<=ViewMaxZ
+			Voxel_ChunkPosition.remove(index)
+			
+			ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+			if World.Chunk[ChunkID].ObjectID=0		
+				ObjectID=Voxel_CreateObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
+				
+				if GetObjectExists(ObjectID)
+					Create3DPhysicsStaticBody(ObjectID)
+					SetObjectShapeStaticPolygon(ObjectID)
+				endif
+			else
+				Voxel_UpdateObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
+				
+				Delete3DPhysicsBody(World.Chunk[ChunkID].ObjectID)
+				Create3DPhysicsStaticBody(World.Chunk[ChunkID].ObjectID)
+				SetObjectShapeStaticPolygon(World.Chunk[ChunkID].ObjectID)
+			endif
+			
+			exit
+		endif
+	next index
+//~	endif
 endfunction
 
-function Voxel_CreateThreadNoise(Border ref as BorderData,World ref as WorldData)
+function Voxel_CreateThreadNoise(World ref as WorldData,ChunkX,ChunkY,ChunkZ)
 	Frecueny2D#=32.0
 	Frecueny3DCave#=10.0
 	Frecueny3DIron#=2.0
 	DirtLayerHeight=3
 	
-	MinX=Border.Min.X-1
-	MinY=Border.Min.Y-1
-	MinZ=Border.Min.Z-1
-	Width=1+(Border.Max.X+1)-MinX
-	Height=1+(Border.Max.Y+1)-MinY
-	Depth=1+(Border.Max.Z+1)-MinZ
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+	MinX=ChunkX*Voxel_ChunkSize
+	MinY=ChunkY*Voxel_ChunkSize
+	MinZ=ChunkZ*Voxel_ChunkSize
+	MaxX=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
+	MaxY=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
+	MaxZ=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
+	Width=MaxX-MinX
+	Height=MaxY-MinY
+	Depth=MaxZ-MinZ
 	
 	NoiseGrassMemblockID=CreateMemblock(4+4*((Width*Height)+Height+1))
 	Noise.Write2DNoiseToMemblock(NoiseGrassMemblockID,Frecueny2D#,MinX,MinZ,Width,Depth)
@@ -374,37 +408,37 @@ function Voxel_CreateThreadNoise(Border ref as BorderData,World ref as WorldData
 	TN_WaitForNoise(NoiseGrassMemblockID)
 	TN_WaitForNoise(NoiseCaveMemblockID)
 	TN_WaitForNoise(NoiseIronMemblockID)
-			
+				
 	Offset2D=0
 	Offset3D=0
-	for CubeX=Border.Min.X-1 to Border.Max.X+1
-		for CubeZ=Border.Min.Z-1 to Border.Max.Z+1
+	for CubeX=0 to World.Chunk[ChunkID].Blocks.length
+		for CubeZ=0 to World.Chunk[ChunkID].Blocks[0].length
 			inc Offset2D,4
-			for CubeY=Border.Min.Y-1 to Border.Max.Y+1
+			for CubeY=0 to World.Chunk[ChunkID].Blocks[0,0].length
 				inc Offset3D,4
 
-				GrassNoise#=(GetMemblockFloat(NoiseGrassMemblockID,Offset2D)+1.0*0.25)*World.Terrain[0].length
-				GrassLayer=(World.Terrain[0].length*0.4)+GrassNoise#/3.0
+				GrassNoise#=(GetMemblockFloat(NoiseGrassMemblockID,Offset2D)+1.0*0.25)*World.ChunkID[0].length*Voxel_ChunkSize
+				GrassLayer=(World.ChunkID[0].length*Voxel_ChunkSize*0.4)+GrassNoise#/3.0
 				
-				if CubeY=GrassLayer
-					World.Terrain[CubeX,CubeY,CubeZ].BlockType=1
-				elseif CubeY>GrassLayer-DirtLayerHeight and CubeY<=GrassLayer
-					World.Terrain[CubeX,CubeY,CubeZ].BlockType=3
-				elseif CubeY<=GrassLayer-DirtLayerHeight
-					World.Terrain[CubeX,CubeY,CubeZ].BlockType=2
+				if CubeY*Voxel_ChunkSize=GrassLayer
+					World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=1
+				elseif CubeY*Voxel_ChunkSize>GrassLayer-DirtLayerHeight and CubeY*Voxel_ChunkSize<=GrassLayer
+					World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=3
+				elseif CubeY*Voxel_ChunkSize<=GrassLayer-DirtLayerHeight
+					World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=2
 
 //~					Offset3D=4+4*((X*Width*Height)+(Y*Height)+Z)
 //~					IronNoise#=GetMemblockFloat(NoiseCaveMemblockID,Offset3D)+1.0*0.25
-//~					if IronNoise#>0.68 then World.Terrain[CubeX,CubeY,CubeZ].BlockType=4
+//~					if IronNoise#>0.68 then World.Chunk[CubeX,CubeY,CubeZ].BlockType=4
 				endif
 				
 				CaveNoise#=GetMemblockFloat(NoiseCaveMemblockID,Offset3D)+1.0*0.25
 				
 				if CaveNoise#>0.5
-					World.Terrain[CubeX,CubeY,CubeZ].BlockType=0
+					World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=0
 				endif
 				
-				World.Terrain[CubeX,CubeY,CubeZ].LightValue=8
+				World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].LightValue=8
 			next CubeY
 			Y=0
 		next CubeZ
@@ -416,7 +450,7 @@ function Voxel_CreateThreadNoise(Border ref as BorderData,World ref as WorldData
 	DeleteMemblock(NoiseCaveMemblockID)
 	DeleteMemblock(NoiseIronMemblockID)
 endfunction
-	
+/*
 function Voxel_CreateGpuNoise(Border ref as BorderData,World ref as WorldData)		
 	OffsetX=Border.Min.X/Voxel_ChunkSize
 	OffsetY=(Border.Min.Y-1)/Voxel_ChunkSize
@@ -435,15 +469,15 @@ function Voxel_CreateGpuNoise(Border ref as BorderData,World ref as WorldData)
 				CubeX=Border.Min.X+X
 				Color=GetMemblockInt(MemblockID,Offset)
 				
-				if GetColorRed(Color)>0.5 then World.Terrain[CubeX,CubeY,CubeZ+0].BlockType=2
-				if GetColorGreen(Color)>0.5 then World.Terrain[CubeX,CubeY,CubeZ+1].BlockType=2
-				if GetColorBlue(Color)>0.5 then World.Terrain[CubeX,CubeY,CubeZ+2].BlockType=2
-				if GetColorAlpha(Color)>0.5 then World.Terrain[CubeX,CubeY,CubeZ+3].BlockType=2
+				if GetColorRed(Color)>0.5 then Voxel_SetBlockType(World,CubeX,CubeY,CubeZ+0,2)
+				if GetColorGreen(Color)>0.5 then Voxel_SetBlockType(World,CubeX,CubeY,CubeZ+1,2)
+				if GetColorBlue(Color)>0.5 then Voxel_SetBlockType(World,CubeX,CubeY,CubeZ+2,2)
+				if GetColorAlpha(Color)>0.5 then Voxel_SetBlockType(World,CubeX,CubeY,CubeZ+3,2)
 				
-				World.Terrain[CubeX,CubeY,CubeZ+0].LightValue=8
-				World.Terrain[CubeX,CubeY,CubeZ+1].LightValue=8
-				World.Terrain[CubeX,CubeY,CubeZ+2].LightValue=8
-				World.Terrain[CubeX,CubeY,CubeZ+3].LightValue=8
+				Voxel_SetBlockLight(World,CubeX,CubeY,CubeZ+0,8)
+				Voxel_SetBlockLight(World,CubeX,CubeY,CubeZ+1,8)
+				Voxel_SetBlockLight(World,CubeX,CubeY,CubeZ+2,8)
+				Voxel_SetBlockLight(World,CubeX,CubeY,CubeZ+3,8)
 			next X
 		next Y
 	next Z
@@ -462,7 +496,7 @@ function Voxel_CreateSoftwareNoise(Border ref as BorderData,World ref as WorldDa
 	Frecueny3DCave#=10.0
 	Frecueny3DIron#=2.0
 	DirtLayerHeight=3
-	WorldHeight=World.Terrain[0].length
+	WorldHeight=World.ChunkID[0].length
 	GrassStart=WorldHeight*0.4
 	for X=Border.Min.X-1 to Border.Max.X+1
 		for Y=Border.Min.Y-1 to Border.Max.Y+1
@@ -472,28 +506,29 @@ function Voxel_CreateSoftwareNoise(Border ref as BorderData,World ref as WorldDa
 				GrassLayer=GrassStart+Value1#/3.0
 				
 				if Y=GrassLayer
-					World.Terrain[X,Y,Z].BlockType=1
+					World.Chunk[X,Y,Z].BlockType=1
 				elseif Y>=GrassLayer-DirtLayerHeight and Y<GrassLayer
-					World.Terrain[X,Y,Z].BlockType=3
+					World.Chunk[X,Y,Z].BlockType=3
 				elseif Y<GrassLayer-DirtLayerHeight
-					World.Terrain[X,Y,Z].BlockType=2
+					World.Chunk[X,Y,Z].BlockType=2
 					//Value3#=Noise_Perlin3(X/Frecueny3DIron#,Y/Frecueny3DIron#,Z/Frecueny3DIron#)
-					//if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
+					//if Value3#>0.68 then World.Chunk[X,Y,Z].BlockType=4
 				endif
 				
 				Value2#=Noise_Perlin3(X/Frecueny3DCave#,Y/Frecueny3DCave#,Z/Frecueny3DCave#)
 				if Value2#>0.5
-					World.Terrain[X,Y,Z].BlockType=0
+					World.Chunk[X,Y,Z].BlockType=0
 				endif
 				
-				World.Terrain[X,Y,Z].LightValue=8
+				World.Chunk[X,Y,Z].LightValue=8
 			next Z
 		next Y
 	next X
 endfunction
+*/
 
-function Voxel_AddLight(World ref as WorldData,CubeX,CubeY,CubeZ)	
-	if World.Terrain[CubeX,CubeY,CubeZ].BlockType=11
+function Voxel_AddLight(World ref as WorldData,ChunkID,CubeX,CubeY,CubeZ)	
+	if World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=11
 //~		ChunkX=round((CubeX-1)/Voxel_ChunkSize)
 //~		ChunkY=round((CubeY-1)/Voxel_ChunkSize)
 //~		ChunkZ=round((CubeZ-1)/Voxel_ChunkSize)
@@ -501,16 +536,16 @@ function Voxel_AddLight(World ref as WorldData,CubeX,CubeY,CubeZ)
 //~		for X=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X to World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X
 //~			for Y=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y to World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y
 //~				for Z=World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z to World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z
-//~					World.Terrain[X,Y,Z].LightValue=2
+//~					World.Chunk[X,Y,Z].LightValue=2
 //~				next Z
 //~			next Y
 //~		next X
 		
-		Voxel_IterativeAddLight(World,CubeX,CubeY,CubeZ,15)
+		Voxel_IterativeAddLight(World,ChunkID,CubeX,CubeY,CubeZ,15)
 	endif
 endfunction
 
-function Voxel_IterativeAddLight(World ref as WorldData,StartX,StartY,StartZ,StartLightValue as integer)
+function Voxel_IterativeAddLight(World ref as WorldData,ChunkID,StartX,StartY,StartZ,StartLightValue as integer)
 	local FrontierTemp as Int3Data
 	local Frontier as Int3Data[]
 	local TempChunkPosition as Int3Data
@@ -520,7 +555,7 @@ function Voxel_IterativeAddLight(World ref as WorldData,StartX,StartY,StartZ,Sta
 	FrontierTemp.Z=StartZ
 	Frontier.insert(FrontierTemp)
 	
-	World.Terrain[StartX,StartY,StartZ].LightValue=StartLightValue
+	World.Chunk[ChunkID].Blocks[StartX,StartY,StartZ].LightValue=StartLightValue
 	
 	while Frontier.length>=0
 		CubeX=Frontier[0].X
@@ -528,110 +563,115 @@ function Voxel_IterativeAddLight(World ref as WorldData,StartX,StartY,StartZ,Sta
 		CubeZ=Frontier[0].Z
 		Frontier.remove(0)
 		
-		if CubeX>1 and CubeX<World.Terrain.length-1 and CubeY>1 and CubeY<World.Terrain[0].length-1 and CubeZ>1 and CubeZ<World.Terrain[0,0].length-1
+		if CubeX>0 and CubeX<World.ChunkID.length*Voxel_ChunkSize and CubeY>0 and CubeY<World.ChunkID[0].length*Voxel_ChunkSize and CubeZ>0 and CubeZ<World.ChunkID[0,0].length*Voxel_ChunkSize
 			for NeighbourID=0 to Voxel_Neighbors.length
 				NeighbourX=CubeX+Voxel_Neighbors[NeighbourID].X
 				NeighbourY=CubeY+Voxel_Neighbors[NeighbourID].Y
 				NeighbourZ=CubeZ+Voxel_Neighbors[NeighbourID].Z
-				if World.Terrain[NeighbourX,NeighbourY,NeighbourZ].BlockType=0
-					if World.Terrain[NeighbourX,NeighbourY,NeighbourZ].LightValue<=World.Terrain[CubeX,CubeY,CubeZ].LightValue-1
+				
+				ChunkX=trunc(NeighbourX/Voxel_ChunkSize)
+				ChunkY=trunc(NeighbourY/Voxel_ChunkSize)
+				ChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
+				ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+				
+				NeighbourCubeX=Mod(NeighbourX,Voxel_ChunkSize)
+				NeighbourCubeY=Mod(NeighbourY,Voxel_ChunkSize)
+				NeighbourCubeZ=Mod(NeighbourZ,Voxel_ChunkSize)
+				
+				if World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=0
+					NewLightValue=World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].LightValue-1
+					if World.Chunk[ChunkID].Blocks[NeighbourCubeX,NeighbourCubeY,NeighbourCubeZ].LightValue<=NewLightValue
 						FrontierTemp.X=NeighbourX
 						FrontierTemp.Y=NeighbourY
 						FrontierTemp.Z=NeighbourZ
 						Frontier.insert(FrontierTemp)
-						World.Terrain[NeighbourX,NeighbourY,NeighbourZ].LightValue=World.Terrain[CubeX,CubeY,CubeZ].LightValue-1
+						World.Chunk[ChunkID].Blocks[NeighbourCubeX,NeighbourCubeY,NeighbourCubeZ].LightValue=NewLightValue
 						
-						TempChunkPosition.X=round((NeighbourX-1)/Voxel_ChunkSize)
-						TempChunkPosition.Y=round((NeighbourY-1)/Voxel_ChunkSize)
-						TempChunkPosition.Z=round((NeighbourZ-1)/Voxel_ChunkSize)
+						TempChunkPosition.X=round(NeighbourX/Voxel_ChunkSize)
+						TempChunkPosition.Y=round(NeighbourY/Voxel_ChunkSize)
+						TempChunkPosition.Z=round(NeighbourZ/Voxel_ChunkSize)
 						if Voxel_GetEntryInArray(Voxel_ChunkPosition,TempChunkPosition)=-1 then Voxel_ChunkPosition.insert(TempChunkPosition)
 					endif
 				endif
 			next NeighbourID
 		endif
 	endwhile
-	
-//~	for ChunkID=ChunkUpdate.length to 0 step -1
-//~		ChunkX=ChunkUpdate[0].X
-//~		ChunkY=ChunkUpdate[0].Y
-//~		ChunkZ=ChunkUpdate[0].Z
-//~		ChunkUpdate.remove(0)
-//~		
-//~		Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
-//~	next ChunkID
 endfunction
 
 function Voxel_AddCubeToObject(Faceimages ref as FaceimageData,World ref as WorldData,X,Y,Z,BlockType)
-	X=Voxel_Clamp(X,1,World.Terrain.length-1)
-	Y=Voxel_Clamp(Y,1,World.Terrain[0].length-1)
-	Z=Voxel_Clamp(Z,1,World.Terrain[0,0].length-1)
+	X=Voxel_Clamp(X,0,World.ChunkID.length*Voxel_ChunkSize)
+	Y=Voxel_Clamp(Y,0,World.ChunkID[0].length*Voxel_ChunkSize)
+	Z=Voxel_Clamp(Z,0,World.ChunkID[0,0].length*Voxel_ChunkSize)
 	
-	World.Terrain[X,Y,Z].BlockType=BlockType
-	Voxel_AddLight(World,X,Y,Z)
+	ChunkX=trunc(X/Voxel_ChunkSize)
+	ChunkY=trunc(Y/Voxel_ChunkSize)
+	ChunkZ=trunc(Z/Voxel_ChunkSize)
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=BlockType
 	
-	ChunkX=round((X-1)/Voxel_ChunkSize)
-	ChunkY=round((Y-1)/Voxel_ChunkSize)
-	ChunkZ=round((Z-1)/Voxel_ChunkSize)
+	Voxel_AddLight(World,ChunkID,CubeX,CubeY,CubeZ)
+	
 	Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
 	
-	CubeX=1+Mod(X-1,Voxel_ChunkSize)
-	CubeY=1+Mod(Y-1,Voxel_ChunkSize)
-	CubeZ=1+Mod(Z-1,Voxel_ChunkSize)
-	
-	if CubeX=Voxel_ChunkSize
-		if ChunkX+1<=World.Chunk.length then Voxel_BuildObject(Faceimages,World,ChunkX+1,ChunkY,ChunkZ)
+	if CubeX=Voxel_ChunkSize-1
+		if ChunkX+1<=World.ChunkID.length*Voxel_ChunkSize then Voxel_BuildObject(Faceimages,World,ChunkX+1,ChunkY,ChunkZ)
 	endif
-	if CubeX=1
+	if CubeX=0
 		if ChunkX-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX-1,ChunkY,ChunkZ)
 	endif
-	if CubeY=Voxel_ChunkSize
-		if ChunkY+1<=World.Chunk[0].length then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY+1,ChunkZ)
+	if CubeY=Voxel_ChunkSize-1
+		if ChunkY+1<=World.ChunkID[0].length*Voxel_ChunkSize then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY+1,ChunkZ)
 	endif
-	if CubeY=1
+	if CubeY=0
 		if ChunkY-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY-1,ChunkZ)
 	endif
-	if CubeZ=Voxel_ChunkSize
-		if ChunkZ+1<=World.Chunk[0,0].length then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ+1)
+	if CubeZ=Voxel_ChunkSize-1
+		if ChunkZ+1<=World.ChunkID[0,0].length*Voxel_ChunkSize then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ+1)
 	endif
-	if CubeZ=1
+	if CubeZ=0
 		if ChunkZ-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ-1)
 	endif
 endfunction
 
 function Voxel_RemoveCubeFromObject(Faceimages ref as FaceimageData,World ref as WorldData,X,Y,Z)
-	X=Voxel_Clamp(X,1,World.Terrain.length-1)
-	Y=Voxel_Clamp(Y,1,World.Terrain[0].length-1)
-	Z=Voxel_Clamp(Z,1,World.Terrain[0,0].length-1)
+	X=Voxel_Clamp(X,0,World.ChunkID.length*Voxel_ChunkSize)
+	Y=Voxel_Clamp(Y,0,World.ChunkID[0].length*Voxel_ChunkSize)
+	Z=Voxel_Clamp(Z,0,World.ChunkID[0,0].length*Voxel_ChunkSize)
 	
-	BlockType=World.Terrain[X,Y,Z].BlockType
-	World.Terrain[X,Y,Z].BlockType=0
-	Voxel_AddLight(World,X,Y,Z)
+	ChunkX=trunc(X/Voxel_ChunkSize)
+	ChunkY=trunc(Y/Voxel_ChunkSize)
+	ChunkZ=trunc(Z/Voxel_ChunkSize)
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	BlockType=World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType
 	
-	ChunkX=round((X-1)/Voxel_ChunkSize)
-	ChunkY=round((Y-1)/Voxel_ChunkSize)
-	ChunkZ=round((Z-1)/Voxel_ChunkSize)
+	World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=0
+	
+	Voxel_AddLight(World,ChunkID,CubeX,CubeY,CubeZ)
+	
 	Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
-	
-	CubeX=1+Mod(X-1,Voxel_ChunkSize)
-	CubeY=1+Mod(Y-1,Voxel_ChunkSize)
-	CubeZ=1+Mod(Z-1,Voxel_ChunkSize)
 
-	if CubeX=Voxel_ChunkSize
-		if ChunkX+1<=World.Chunk.length then Voxel_BuildObject(Faceimages,World,ChunkX+1,ChunkY,ChunkZ)
+	if CubeX=Voxel_ChunkSize-1
+		if ChunkX+1<=World.ChunkID.length*Voxel_ChunkSize then Voxel_BuildObject(Faceimages,World,ChunkX+1,ChunkY,ChunkZ)
 	endif
-	if CubeX=1
+	if CubeX=0
 		if ChunkX-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX-1,ChunkY,ChunkZ)
 	endif
-	if CubeY=Voxel_ChunkSize
-		if ChunkY+1<=World.Chunk[0].length then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY+1,ChunkZ)
+	if CubeY=Voxel_ChunkSize-1
+		if ChunkY+1<=World.ChunkID[0].length*Voxel_ChunkSize then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY+1,ChunkZ)
 	endif
-	if CubeY=1
+	if CubeY=0
 		if ChunkY-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY-1,ChunkZ)
 	endif
-	if CubeZ=Voxel_ChunkSize
-		if ChunkZ+1<=World.Chunk[0,0].length then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ+1)
+	if CubeZ=Voxel_ChunkSize-1
+		if ChunkZ+1<=World.ChunkID[0,0].length*Voxel_ChunkSize then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ+1)
 	endif
-	if CubeZ=1
+	if CubeZ=0
 		if ChunkZ-1>=0 then Voxel_BuildObject(Faceimages,World,ChunkX,ChunkY,ChunkZ-1)
 	endif
 endfunction BlockType
@@ -639,34 +679,34 @@ endfunction BlockType
 function Voxel_RemoveCubeListFromObject(Faceimages ref as FaceimageData,World ref as WorldData,CubeList as Int3Data[])
 	if CubeList.length>=0
 		for index=0 to CubeList.length
-			X=Voxel_Clamp(CubeList[index].X,1,World.Terrain.length-1)
-			Y=Voxel_Clamp(CubeList[index].Y,1,World.Terrain[0].length-1)
-			Z=Voxel_Clamp(CubeList[index].Z,1,World.Terrain[0,0].length-1)
+			X=Voxel_Clamp(CubeList[index].X,0,World.ChunkID.length*Voxel_ChunkSize)
+			Y=Voxel_Clamp(CubeList[index].Y,0,World.ChunkID[0].length*Voxel_ChunkSize)
+			Z=Voxel_Clamp(CubeList[index].Z,0,World.ChunkID[0,0].length*Voxel_ChunkSize)
 			
-			BlockType=World.Terrain[X,Y,Z].BlockType
-			World.Terrain[X,Y,Z].BlockType=0
-			Voxel_AddLight(World,X,Y,Z)
+			ChunkX=trunc(X/Voxel_ChunkSize)
+			ChunkY=trunc(Y/Voxel_ChunkSize)
+			ChunkZ=trunc(Z/Voxel_ChunkSize)
+			ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+			CubeX=Mod(X,Voxel_ChunkSize)
+			CubeY=Mod(Y,Voxel_ChunkSize)
+			CubeZ=Mod(Z,Voxel_ChunkSize)
+			BlockType=World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType
+			World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=0
 			
-			ChunkX=round((X-1)/Voxel_ChunkSize)
-			ChunkY=round((Y-1)/Voxel_ChunkSize)
-			ChunkZ=round((Z-1)/Voxel_ChunkSize)
-			
-			CubeX=1+Mod(X-1,Voxel_ChunkSize)
-			CubeY=1+Mod(Y-1,Voxel_ChunkSize)
-			CubeZ=1+Mod(Z-1,Voxel_ChunkSize)
+			Voxel_AddLight(World,ChunkID,CubeX,CubeY,CubeZ)
 		
 			ChunkList as Int3Data[]
 			TempChunk as Int3Data
 		
 			if CubeX=Voxel_ChunkSize
-				if ChunkX+1<=World.Chunk.length
+				if ChunkX+1<=World.ChunkID.length
 					TempChunk.X=ChunkX+1
 					TempChunk.Y=ChunkY
 					TempChunk.Z=ChunkZ
 					if Voxel_GetEntryInArray(ChunkList,TempChunk)=-1 then ChunkList.insert(TempChunk)
 				endif
 			endif
-			if CubeX=1
+			if CubeX=0
 				if ChunkX-1>=0
 					TempChunk.X=ChunkX-1
 					TempChunk.Y=ChunkY
@@ -675,14 +715,14 @@ function Voxel_RemoveCubeListFromObject(Faceimages ref as FaceimageData,World re
 				endif
 			endif
 			if CubeY=Voxel_ChunkSize
-				if ChunkY+1<=World.Chunk[0].length
+				if ChunkY+1<=World.ChunkID[0].length
 					TempChunk.X=ChunkX
 					TempChunk.Y=ChunkY+1
 					TempChunk.Z=ChunkZ
 					if Voxel_GetEntryInArray(ChunkList,TempChunk)=-1 then ChunkList.insert(TempChunk)
 				endif
 			endif
-			if CubeY=1
+			if CubeY=0
 				if ChunkY-1>=0
 					TempChunk.X=ChunkX
 					TempChunk.Y=ChunkY-1
@@ -691,14 +731,14 @@ function Voxel_RemoveCubeListFromObject(Faceimages ref as FaceimageData,World re
 				endif
 			endif
 			if CubeZ=Voxel_ChunkSize
-				if ChunkZ+1<=World.Chunk[0,0].length
+				if ChunkZ+1<=World.ChunkID[0,0].length
 					TempChunk.X=ChunkX
 					TempChunk.Y=ChunkY
 					TempChunk.Z=ChunkZ+1
 					if Voxel_GetEntryInArray(ChunkList,TempChunk)=-1 then ChunkList.insert(TempChunk)
 				endif
 			endif
-			if CubeZ=1
+			if CubeZ=0
 				if ChunkZ-1>=0
 					TempChunk.X=ChunkX
 					TempChunk.Y=ChunkY
@@ -721,43 +761,38 @@ function Voxel_DeleteObject(Chunk ref as ChunkData)
 	Chunk.ObjectID=0
 endfunction
 
-function Voxel_BuildObject(FaceImages ref as FaceimageData,World ref as WorldData, ChunkX,ChunkY,ChunkZ)
-  	if World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID=0
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X=ChunkX*Voxel_ChunkSize+1
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y=ChunkY*Voxel_ChunkSize+1
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z=ChunkZ*Voxel_ChunkSize+1
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
+function Voxel_BuildObject(FaceImages ref as FaceimageData,World ref as WorldData,ChunkX,ChunkY,ChunkZ)
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+  	if World.Chunk[ChunkID].ObjectID=0
 		
-		Voxel_CreateThreadNoise(World.Chunk[ChunkX,ChunkY,ChunkZ].Border,World)
+		Voxel_CreateThreadNoise(World,ChunkX,ChunkY,ChunkZ)
 //~		Voxel_CreateGPUNoise(World.Chunk[ChunkX,ChunkY,ChunkZ].Border,World)
 //~		Voxel_CreateSoftwareNoise(World.Chunk[ChunkX,ChunkY,ChunkZ].Border,World)
 
-		ObjectID=Voxel_CreateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Visible=1
+		ObjectID=Voxel_CreateObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
 		
 		if GetObjectExists(ObjectID)
 			Create3DPhysicsStaticBody(ObjectID)
 			SetObjectShapeStaticPolygon(ObjectID)
 		endif
 	else
-		Voxel_UpdateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-		SetObjectVisible(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID,1)
-		World.Chunk[ChunkX,ChunkY,ChunkZ].Visible=1
+		Voxel_UpdateObject(Faceimages,World,ChunkX,ChunkY,ChunkZ)
+		SetObjectVisible(World.Chunk[ChunkID].ObjectID,1)
 		
-		Delete3DPhysicsBody(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID)
-		Create3DPhysicsStaticBody(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID)
-		SetObjectShapeStaticPolygon(World.Chunk[ChunkX,ChunkY,ChunkZ].ObjectID)
+		Delete3DPhysicsBody(World.Chunk[ChunkID].ObjectID)
+		Create3DPhysicsStaticBody(World.Chunk[ChunkID].ObjectID)
+		SetObjectShapeStaticPolygon(World.Chunk[ChunkID].ObjectID)
 	endif
 endfunction ObjectID
 
-function Voxel_CreateObject(FaceImages ref as FaceimageData,Chunk ref as ChunkData,World ref as WorldData)	
+function Voxel_CreateObject(FaceImages ref as FaceimageData,World ref as WorldData,ChunkX,ChunkY,ChunkZ)	
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+	
 	local Object as ObjectData
-	for CubeX=Chunk.Border.Min.X to Chunk.Border.Max.X
-		for CubeZ=Chunk.Border.Min.Z to Chunk.Border.Max.Z
-			for CubeY=Chunk.Border.Min.Y to Chunk.Border.Max.Y
-				Voxel_GenerateCubeFaces(Object,Faceimages,World,CubeX,CubeY,CubeZ)
+	for CubeX=0 to Voxel_ChunkSize-1
+		for CubeZ=0 to Voxel_ChunkSize-1
+			for CubeY=0 to Voxel_ChunkSize-1
+				Voxel_GenerateCubeFaces(Object,Faceimages,World,ChunkX*Voxel_ChunkSize+CubeX,ChunkY*Voxel_ChunkSize+CubeY,ChunkZ*Voxel_ChunkSize+CubeZ)
 			next CubeY
 		next CubeZ
 	next CubeX
@@ -765,26 +800,26 @@ function Voxel_CreateObject(FaceImages ref as FaceimageData,Chunk ref as ChunkDa
 	if Object.Vertex.length>1
 		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
 		Voxel_WriteMeshMemblock(MemblockID,Object)		
-		Chunk.ObjectID=CreateObjectFromMeshMemblock(MemblockID)
+		World.Chunk[ChunkID].ObjectID=CreateObjectFromMeshMemblock(MemblockID)
 		DeleteMemblock(MemblockID)
 		Object.Index.length=-1
 		Object.Vertex.length=-1
 		
-		SetObjectPosition(Chunk.ObjectID,Chunk.Border.Min.X-1,Chunk.Border.Min.Y-1,Chunk.Border.Min.Z-1)
-		SetObjectImage(Chunk.ObjectID,Voxel_DiffuseImageID,0)
-//~		SetObjectNormalMap(Chunk.ObjectID,Voxel_NormalImageID)
-		SetObjectShader(Chunk.ObjectID,Voxel_ShaderID)
-		Chunk.Visible=1
+		SetObjectPosition(World.Chunk[ChunkID].ObjectID,ChunkX*Voxel_ChunkSize,ChunkY*Voxel_ChunkSize,ChunkZ*Voxel_ChunkSize)
+		SetObjectImage(World.Chunk[ChunkID].ObjectID,Voxel_DiffuseImageID,0)
+//~		SetObjectNormalMap(World.Chunk[ChunkID].ObjectID,Voxel_NormalImageID)
+		SetObjectShader(World.Chunk[ChunkID].ObjectID,Voxel_ShaderID)
 	endif
-endfunction Chunk.ObjectID
+endfunction World.Chunk[ChunkID].ObjectID
 
-function Voxel_UpdateObject(Faceimages ref as FaceimageData,Chunk ref as ChunkData,World ref as WorldData)
-	StartTime#=Timer()
+function Voxel_UpdateObject(Faceimages ref as FaceimageData,World ref as WorldData,ChunkX,ChunkY,ChunkZ)
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+	
 	local Object as ObjectData
-	for CubeX=Chunk.Border.Min.X to Chunk.Border.Max.X
-		for CubeZ=Chunk.Border.Min.Z to Chunk.Border.Max.Z
-			for CubeY=Chunk.Border.Min.Y to Chunk.Border.Max.Y
-				Voxel_GenerateCubeFaces(Object,Faceimages,World,CubeX,CubeY,CubeZ)
+	for CubeX=0 to Voxel_ChunkSize-1
+		for CubeZ=0 to Voxel_ChunkSize-1
+			for CubeY=0 to Voxel_ChunkSize-1
+				Voxel_GenerateCubeFaces(Object,Faceimages,World,ChunkX*Voxel_ChunkSize+CubeX,ChunkY*Voxel_ChunkSize+CubeY,ChunkZ*Voxel_ChunkSize+CubeZ)
 			next CubeY
 		next CubeZ
 	next CubeX
@@ -792,19 +827,29 @@ function Voxel_UpdateObject(Faceimages ref as FaceimageData,Chunk ref as ChunkDa
 	if Object.Vertex.length>1
 		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
 		Voxel_WriteMeshMemblock(MemblockID,Object)
-		SetObjectMeshFromMemblock(Chunk.ObjectID,1,MemblockID)
+		SetObjectMeshFromMemblock(World.Chunk[ChunkID].ObjectID,1,MemblockID)
 		DeleteMemblock(MemblockID)
 		Object.Index.length=-1
 		Object.Vertex.length=-1
 	endif
-	EndTime#=Timer()
-	Voxel_DebugMeshBuildingTime#=EndTime#-StartTime#
 endfunction
 
 function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as FaceimageData,World ref as WorldData,X,Y,Z)	
-	if World.Terrain[X,Y,Z].BlockType>0
-		
-		Index=World.Terrain[X,Y,Z].BlockType-1
+	ChunkX=trunc(X/Voxel_ChunkSize)
+	ChunkY=trunc(Y/Voxel_ChunkSize)
+	ChunkZ=trunc(Z/Voxel_ChunkSize)
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+	
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	if CubeX<0 then CubeX=Voxel_ChunkSize+CubeX
+	if CubeY<0 then CubeY=Voxel_ChunkSize+CubeY
+	if CubeZ<0 then CubeZ=Voxel_ChunkSize+CubeZ
+	BlockType=World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType
+	
+	if BlockType>0
+		Index=BlockType-1
 		
 		local TempSubimages as SubimageData[5]
 		TempSubimages[0]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].FrontID]
@@ -813,192 +858,261 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 		TempSubimages[3]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].LeftID]
 		TempSubimages[4]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].UpID]
 		TempSubimages[5]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].DownID]
-		
-		CubeX=1+Mod(X-1,Voxel_ChunkSize)
-		CubeY=1+Mod(Y-1,Voxel_ChunkSize)
-		CubeZ=1+Mod(Z-1,Voxel_ChunkSize)
-			
-		if World.Terrain[X,Y,Z+1].BlockType=0
-			side1=(World.Terrain[X,Y+1,Z+1].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X-1,Y+1,Z+1].BlockType=0)
+
+//~		if World.Chunk[ChunkID].Blocks[X,Y,Z+1].BlockType=0
+		if Voxel_GetBlockType(World,X,Y,Z+1)=0
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y+1,Z+1)=0)
 			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y+1,Z+1].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X+1,Y+1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y+1,Z+1)=0)
 			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z+1].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X+1,Y-1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y-1,Z+1)=0)
 			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z+1].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X-1,Y-1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y-1,Z+1)=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
 			
-			AO0=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO0
-			AO1=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO1
-			AO2=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO2
-			AO3=World.Terrain[X,Y,Z+1].LightValue/15.0*255-AO3
+			AO0=Voxel_GetBlockLight(World,X,Y,Z+1)/15.0*255-AO0
+			AO1=Voxel_GetBlockLight(World,X,Y,Z+1)/15.0*255-AO1
+			AO2=Voxel_GetBlockLight(World,X,Y,Z+1)/15.0*255-AO2
+			AO3=Voxel_GetBlockLight(World,X,Y,Z+1)/15.0*255-AO3
 			
 			Voxel_AddFaceToObject(Object,TempSubimages[0],CubeX,CubeY,CubeZ,FaceFront,AO0,AO1,AO2,AO3,Flipped)
 		endif
-		if World.Terrain[X,Y,Z-1].BlockType=0			
-			side1=(World.Terrain[X,Y+1,Z-1].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X+1,Y+1,Z-1].BlockType=0)
+//~		if World.Chunk[ChunkID].Blocks[X,Y,Z-1].BlockType=0
+		if Voxel_GetBlockType(World,X,Y,Z-1)=0
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y+1,Z-1)=0)
 			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y+1,Z-1].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X-1,Y+1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y+1,Z-1)=0)
 			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z-1].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X-1,Y-1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y-1,Z-1)=0)
 			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z-1].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X+1,Y-1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y-1,Z-1)=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
 			
-			AO0=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO0
-			AO1=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO1
-			AO2=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO2
-			AO3=World.Terrain[X,Y,Z-1].LightValue/15.0*255-AO3
+			AO0=Voxel_GetBlockLight(World,X,Y,Z-1)/15.0*255-AO0
+			AO1=Voxel_GetBlockLight(World,X,Y,Z-1)/15.0*255-AO1
+			AO2=Voxel_GetBlockLight(World,X,Y,Z-1)/15.0*255-AO2
+			AO3=Voxel_GetBlockLight(World,X,Y,Z-1)/15.0*255-AO3
 			
 			Voxel_AddFaceToObject(Object,TempSubimages[1],CubeX,CubeY,CubeZ,FaceBack,AO0,AO1,AO2,AO3,Flipped)
 		endif
-		if World.Terrain[X+1,Y,Z].BlockType=0	
-			side1=(World.Terrain[X+1,Y+1,Z].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X+1,Y+1,Z+1].BlockType=0)
+//~		if World.Chunk[ChunkID].Blocks[X+1,Y,Z].BlockType=0
+		if Voxel_GetBlockType(World,X+1,Y,Z)=0
+			side1=(Voxel_GetBlockType(World,X+1,Y+1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y+1,Z+1)=0)
 			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X+1,Y+1,Z].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X+1,Y+1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X+1,Y+1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y+1,Z-1)=0)
 			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X+1,Y-1,Z].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X+1,Y-1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X+1,Y-1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y-1,Z-1)=0)
 			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X+1,Y-1,Z].BlockType=0)
-			side2=(World.Terrain[X+1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X+1,Y-1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X+1,Y-1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y-1,Z+1)=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
 			
-			AO0=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO0
-			AO1=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO1
-			AO2=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO2
-			AO3=World.Terrain[X+1,Y,Z].LightValue/15.0*255-AO3
+			AO0=Voxel_GetBlockLight(World,X+1,Y,Z)/15.0*255-AO0
+			AO1=Voxel_GetBlockLight(World,X+1,Y,Z)/15.0*255-AO1
+			AO2=Voxel_GetBlockLight(World,X+1,Y,Z)/15.0*255-AO2
+			AO3=Voxel_GetBlockLight(World,X+1,Y,Z)/15.0*255-AO3
 			
 			Voxel_AddFaceToObject(Object,TempSubimages[2],CubeX,CubeY,CubeZ,FaceRight,AO0,AO1,AO2,AO3,Flipped)
 		endif
-		if World.Terrain[X-1,Y,Z].BlockType=0		
-			side1=(World.Terrain[X-1,Y+1,Z].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X-1,Y+1,Z-1].BlockType=0)
+//~		if World.Chunk[ChunkID].Blocks[X-1,Y,Z].BlockType=0
+		if Voxel_GetBlockType(World,X-1,Y,Z)=0
+			side1=(Voxel_GetBlockType(World,X-1,Y+1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y+1,Z-1)=0)
 			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X-1,Y+1,Z].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X-1,Y+1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X-1,Y+1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y+1,Z+1)=0)
 			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X-1,Y-1,Z].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z+1].BlockType=0)
-			corner=(World.Terrain[X-1,Y-1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X-1,Y-1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z+1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y-1,Z+1)=0)
 			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X-1,Y-1,Z].BlockType=0)
-			side2=(World.Terrain[X-1,Y,Z-1].BlockType=0)
-			corner=(World.Terrain[X-1,Y-1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X-1,Y-1,Z)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y,Z-1)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y-1,Z-1)=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
 			
-			AO0=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO0
-			AO1=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO1
-			AO2=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO2
-			AO3=World.Terrain[X-1,Y,Z].LightValue/15.0*255-AO3
+			AO0=Voxel_GetBlockLight(World,X-1,Y,Z)/15.0*255-AO0
+			AO1=Voxel_GetBlockLight(World,X-1,Y,Z)/15.0*255-AO1
+			AO2=Voxel_GetBlockLight(World,X-1,Y,Z)/15.0*255-AO2
+			AO3=Voxel_GetBlockLight(World,X-1,Y,Z)/15.0*255-AO3
 			
 			Voxel_AddFaceToObject(Object,TempSubimages[3],CubeX,CubeY,CubeZ,FaceLeft,AO0,AO1,AO2,AO3,Flipped)
 		endif
-		if World.Terrain[X,Y+1,Z].BlockType=0		
-			side1=(World.Terrain[X,Y+1,Z+1].BlockType=0)
-			side2=(World.Terrain[X+1,Y+1,Z].BlockType=0)
-			corner=(World.Terrain[X+1,Y+1,Z+1].BlockType=0)
+//~		if World.Chunk[ChunkID].Blocks[X,Y+1,Z].BlockType=0	
+		if Voxel_GetBlockType(World,X,Y+1,Z)=0
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y+1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y+1,Z+1)=0)
 			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y+1,Z+1].BlockType=0)
-			side2=(World.Terrain[X-1,Y+1,Z].BlockType=0)
-			corner=(World.Terrain[X-1,Y+1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y+1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y+1,Z+1)=0)
 			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y+1,Z-1].BlockType=0)
-			side2=(World.Terrain[X-1,Y+1,Z].BlockType=0)
-			corner=(World.Terrain[X-1,Y+1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y+1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y+1,Z-1)=0)
 			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y+1,Z-1].BlockType=0)
-			side2=(World.Terrain[X+1,Y+1,Z].BlockType=0)
-			corner=(World.Terrain[X+1,Y+1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y+1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y+1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y+1,Z-1)=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
 			
-			AO0=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO0
-			AO1=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO1
-			AO2=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO2
-			AO3=World.Terrain[X,Y+1,Z].LightValue/15.0*255-AO3
+			AO0=Voxel_GetBlockLight(World,X,Y+1,Z)/15.0*255-AO0
+			AO1=Voxel_GetBlockLight(World,X,Y+1,Z)/15.0*255-AO1
+			AO2=Voxel_GetBlockLight(World,X,Y+1,Z)/15.0*255-AO2
+			AO3=Voxel_GetBlockLight(World,X,Y+1,Z)/15.0*255-AO3
 			
 			Voxel_AddFaceToObject(Object,TempSubimages[4],CubeX,CubeY,CubeZ,FaceUp,AO0,AO1,AO2,AO3,Flipped)
 		endif
-		if World.Terrain[X,Y-1,Z].BlockType=0			
-			side1=(World.Terrain[X,Y-1,Z+1].BlockType=0)
-			side2=(World.Terrain[X-1,Y-1,Z].BlockType=0)
-			corner=(World.Terrain[X-1,Y-1,Z+1].BlockType=0)
+//~		if World.Chunk[ChunkID].Blocks[X,Y-1,Z].BlockType=0
+		if Voxel_GetBlockType(World,X,Y-1,Z)=0
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y-1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y-1,Z+1)=0)
 			AO0=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z+1].BlockType=0)
-			side2=(World.Terrain[X+1,Y-1,Z].BlockType=0)
-			corner=(World.Terrain[X+1,Y-1,Z+1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z+1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y-1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y-1,Z+1)=0)
 			AO1=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z-1].BlockType=0)
-			side2=(World.Terrain[X+1,Y-1,Z].BlockType=0)
-			corner=(World.Terrain[X+1,Y-1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X+1,Y-1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X+1,Y-1,Z-1)=0)
 			AO2=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
-			side1=(World.Terrain[X,Y-1,Z-1].BlockType=0)
-			side2=(World.Terrain[X-1,Y-1,Z].BlockType=0)
-			corner=(World.Terrain[X-1,Y-1,Z-1].BlockType=0)
+			side1=(Voxel_GetBlockType(World,X,Y-1,Z-1)=0)
+			side2=(Voxel_GetBlockType(World,X-1,Y-1,Z)=0)
+			corner=(Voxel_GetBlockType(World,X-1,Y-1,Z-1)=0)
 			AO3=Voxel_GetVertexAO(side1,side2,corner)/3.0*255
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
 			
-			AO0=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO0
-			AO1=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO1
-			AO2=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO2
-			AO3=World.Terrain[X,Y-1,Z].LightValue/15.0*255-AO3
+			AO0=Voxel_GetBlockLight(World,X,Y-1,Z)/15.0*255-AO0
+			AO1=Voxel_GetBlockLight(World,X,Y-1,Z)/15.0*255-AO1
+			AO2=Voxel_GetBlockLight(World,X,Y-1,Z)/15.0*255-AO2
+			AO3=Voxel_GetBlockLight(World,X,Y-1,Z)/15.0*255-AO3
 			
 			Voxel_AddFaceToObject(Object,TempSubimages[5],CubeX,CubeY,CubeZ,FaceDown,AO0,AO1,AO2,AO3,Flipped)
 		endif
 	endif
+endfunction
+
+function Voxel_AddChunk(World ref as WorldData,ChunkX,ChunkY,ChunkZ)
+	if World.ChunkID[ChunkX,ChunkY,ChunkZ]=-1
+		TempBlocks as ChunkData
+		World.Chunk.insert(TempBlocks)
+		World.ChunkID[ChunkX,ChunkY,ChunkZ]=World.Chunk.length
+	endif
+endfunction
+
+function Voxel_GetChunkID(World ref as WorldData,X,Y,Z)
+	ChunkX=trunc(X/Voxel_ChunkSize)
+	ChunkY=trunc(Y/Voxel_ChunkSize)
+	ChunkZ=trunc(Z/Voxel_ChunkSize)
+	ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+endfunction ChunkID
+
+function Voxel_GetBlockTypeFromChunk(World ref as WorldData,ChunkID,X,Y,Z)
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	if CubeX<0 then CubeX=Voxel_ChunkSize+CubeX
+	if CubeY<0 then CubeY=Voxel_ChunkSize+CubeY
+	if CubeZ<0 then CubeZ=Voxel_ChunkSize+CubeZ
+	BlockType=World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType
+endfunction BlockType
+
+function Voxel_GetBlockType(World ref as WorldData,X,Y,Z)
+	ChunkID=Voxel_GetChunkID(World,X,Y,Z)
+	if ChunkID=-1 then exitfunction -1
+	BlockType=Voxel_GetBlockTypeFromChunk(World,ChunkID,X,Y,Z)
+endfunction BlockType
+
+function Voxel_SetBlockType(World ref as WorldData,X,Y,Z,BlockType)
+	ChunkID=Voxel_GetChunkID(World,X,Y,Z)
+	if ChunkID=-1 then exitfunction 0
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	if CubeX<0 then CubeX=Voxel_ChunkSize+CubeX
+	if CubeY<0 then CubeY=Voxel_ChunkSize+CubeY
+	if CubeZ<0 then CubeZ=Voxel_ChunkSize+CubeZ
+	World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].BlockType=BlockType
+endfunction 1
+
+function Voxel_GetBlockLight(World ref as WorldData,X,Y,Z)
+	ChunkID=Voxel_GetChunkID(World,X,Y,Z)
+	if ChunkID=-1 then exitfunction 0
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	if CubeX<0 then CubeX=Voxel_ChunkSize+CubeX
+	if CubeY<0 then CubeY=Voxel_ChunkSize+CubeY
+	if CubeZ<0 then CubeZ=Voxel_ChunkSize+CubeZ
+	LightValue=World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].LightValue
+endfunction LightValue
+
+function Voxel_SetBlockLight(World ref as WorldData,X,Y,Z,LightValue)
+	ChunkID=Voxel_GetChunkID(World,X,Y,Z)
+	if ChunkID=-1 then exitfunction
+	CubeX=Mod(X,Voxel_ChunkSize)
+	CubeY=Mod(Y,Voxel_ChunkSize)
+	CubeZ=Mod(Z,Voxel_ChunkSize)
+	if CubeX<0 then CubeX=Voxel_ChunkSize+CubeX
+	if CubeY<0 then CubeY=Voxel_ChunkSize+CubeY
+	if CubeZ<0 then CubeZ=Voxel_ChunkSize+CubeZ
+	World.Chunk[ChunkID].Blocks[CubeX,CubeY,CubeZ].LightValue=LightValue
 endfunction
 
 function Voxel_GetVertexAO(side1, side2, corner)
@@ -1468,14 +1582,14 @@ Dot#=ChunkDirX#*CameraDirX#+ChunkDirY#*CameraDirY#+ChunkDirZ#*CameraDirZ#
 
 /*
 function Voxel_RecursiveLight(CubeX,CubeY,CubeZ,LightValue,World ref as WorldData)
-	if CubeX>World.Terrain.length then exitfunction
+	if CubeX>World.Chunk.length then exitfunction
 	if CubeX<0 then exitfunction
-	if CubeY>World.Terrain[0].length then exitfunction
+	if CubeY>World.Chunk[0].length then exitfunction
 	if CubeY<0 then exitfunction
-	if CubeZ>World.Terrain[0,0].length then exitfunction
+	if CubeZ>World.Chunk[0,0].length then exitfunction
 	if CubeZ<0 then exitfunction
 	
-	if World.Terrain[CubeX,CubeY,CubeZ].BlockType>0
+	if World.Chunk[CubeX,CubeY,CubeZ].BlockType>0
 		Attenuation=15
 	else
 		Attenuation=1
@@ -1483,9 +1597,9 @@ function Voxel_RecursiveLight(CubeX,CubeY,CubeZ,LightValue,World ref as WorldDat
 
 	LightValue=LightValue-Attenuation
 
-	if LightValue<=World.Terrain[CubeX,CubeY,CubeZ].LightValue then exitfunction
+	if LightValue<=World.Chunk[CubeX,CubeY,CubeZ].LightValue then exitfunction
 	
-	World.Terrain[CubeX,CubeY,CubeZ].LightValue=LightValue
+	World.Chunk[CubeX,CubeY,CubeZ].LightValue=LightValue
 
 	Voxel_RecursiveLight(CubeX,CubeY,CubeZ+1,LightValue,World)
 	Voxel_RecursiveLight(CubeX,CubeY,CubeZ-1,LightValue,World)

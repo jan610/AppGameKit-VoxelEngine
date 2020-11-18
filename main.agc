@@ -20,7 +20,7 @@ SetWindowAllowResize( 1 ) // allow the user to resize the window
 // set display properties
 SetVirtualResolution( 1024, 768 ) // doesn't have to match the window
 SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobile devices
-SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
+SetSyncRate( 60, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
 SetPrintSize(16)
@@ -44,7 +44,7 @@ Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
 
 World as WorldData
 
-Voxel_Init(World,16,256,16,256,TERRAIN_IMG)
+Voxel_Init(World,16,32,2,32,TERRAIN_IMG)
 
 Noise_Init()
 Noise_Seed(257)
@@ -52,25 +52,25 @@ Noise_Seed(257)
 freq1#=32.0
 freq2#=12.0
 freq3#=2.0
-for X=0 to World.Terrain.length
-	for Y=0 to World.Terrain[0].length
-		for Z=0 to World.Terrain[0,0].length
-			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World.Terrain[0].length
+for X=0 to World.Chunk.length
+	for Y=0 to World.Chunk[0].length
+		for Z=0 to World.Chunk[0,0].length
+			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World.Chunk[0].length
 			Value2#=Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#)
-			MaxGrass=(World.Terrain[0].length*0.7)+Value1#/2
-			MaxDirt=(World.Terrain[0].length*0.64)+Value1#/2
-			MaxStone=(World.Terrain[0].length*0.4)+Value1#/2
+			MaxGrass=(World.Chunk[0].length*0.7)+Value1#/2
+			MaxDirt=(World.Chunk[0].length*0.64)+Value1#/2
+			MaxStone=(World.Chunk[0].length*0.4)+Value1#/2
 			if Y>MaxDirt and Y<=MaxGrass
-				World.Terrain[X,Y,Z].BlockType=1
+				World.Chunk[X,Y,Z].BlockType=1
 			elseif Y>MaxStone and Y<=MaxDirt
-				World.Terrain[X,Y,Z].BlockType=3
+				World.Chunk[X,Y,Z].BlockType=3
 			elseif Y<=MaxStone
-				World.Terrain[X,Y,Z].BlockType=2
+				World.Chunk[X,Y,Z].BlockType=2
 				Value3#=Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#)
-				if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
+				if Value3#>0.68 then World.Chunk[X,Y,Z].BlockType=4
 			endif
-			if Value2#>0.5 then World.Terrain[X,Y,Z].BlockType=0
-			World.Terrain[X,Y,Z].LightValue=2
+			if Value2#>0.5 then World.Chunk[X,Y,Z].BlockType=0
+			World.Chunk[X,Y,Z].LightValue=2
 		next Z
 	next Y
 next X
@@ -95,10 +95,10 @@ next ChunkX
 //~Filepath$="Raw:"+ReadPath$+"media/world.json"
 Voxel_SaveWorld(WORLD_JSON, World)
 
-SpawnX#=World.Terrain.length/2
-SpawnY#=World.Terrain[0].length
-SpawnZ#=World.Terrain[0,0].length/2
-SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
+//~SpawnX#=World.ChunkID.length/2*16
+//~SpawnY#=World.ChunkID[0].length*16
+//~SpawnZ#=World.ChunkID[0,0].length/2*16
+//~SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 
 PreviewImageID=LoadImage(PREVIEW_IMG)
@@ -126,7 +126,7 @@ do
     NewCameraY#=GetCameraY(1)
     NewCameraZ#=GetCameraZ(1)
 
-//~ if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
+//~	if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
 //~		NewCameraX#=GetObjectRayCastSlideX(0)
 //~		NewCameraY#=GetObjectRayCastSlideY(0)
 //~		NewCameraZ#=GetObjectRayCastSlideZ(0)
@@ -135,11 +135,10 @@ do
 //~	endif
 
 	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
-	if ChunkUpdateSwitch=1 then Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,2)
+	if ChunkUpdateSwitch=1 then Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,6)
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
-
 	
  	PointerX#=Get3DVectorXFromScreen(GetPointerX(),GetPointerY())
 	PointerY#=Get3DVectorYFromScreen(GetPointerX(),GetPointerY())
@@ -161,15 +160,15 @@ do
 
 		SetObjectPosition(PreviewObjectID,HitGridX,HitGridY,HitGridZ)
 
-		ChunkX=round((HitGridX-1)/Voxel_ChunkSize)
-		ChunkY=round((HitGridY-1)/Voxel_ChunkSize)
-		ChunkZ=round((HitGridZ-1)/Voxel_ChunkSize)
-		
-		CubeX=1+Mod(HitGridX-1,Voxel_ChunkSize)
-		CubeY=1+Mod(HitGridY-1,Voxel_ChunkSize)
-		CubeZ=1+Mod(HitGridZ-1,Voxel_ChunkSize)
-		
-		LightValue=World.Terrain[HitGridX,HitGridY+1,HitGridZ].LightValue
+		ChunkX=trunc(HitGridX/Voxel_ChunkSize)
+		ChunkY=trunc(HitGridY/Voxel_ChunkSize)
+		ChunkZ=trunc(HitGridZ/Voxel_ChunkSize)
+		ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+		CubeX=Mod(HitGridX,Voxel_ChunkSize)
+		CubeY=Mod(HitGridY,Voxel_ChunkSize)
+		CubeZ=Mod(HitGridZ,Voxel_ChunkSize)
+		BlockType=Voxel_GetBlockTypeFromChunk(World,ChunkID,HitGridX,HitGridY,HitGridZ)
+		LightValue=Voxel_GetBlockLight(World,HitGridX,HitGridY+1,HitGridZ)
 		
 //~		SetPointLightPosition(LightID,HitPositionX#+HitNormalX#,HitPositionY#+HitNormalY#,HitPositionZ#+HitNormalZ#)
 	endif
@@ -210,7 +209,7 @@ do
 						DistY=CubeY-HitGridY
 						DistZ=CubeZ-HitGridZ
 						Dist#=sqrt(DistX*DistX+DistY*DistY+DistZ*DistZ)
-						if Dist#<=ExplosionRadius+0.5 and World.Terrain[CubeX,CubeY,CubeZ].BlockType>0
+						if Dist#<=ExplosionRadius+0.5 and Voxel_GetBlockType(World,CubeX,CubeY,CubeZ)>0
 							TempCubePos.X=CubeX
 							TempCubePos.Y=CubeY
 							TempCubePos.Z=CubeZ
@@ -281,7 +280,7 @@ do
 	// TODO A complete Logging by pressing any key
     print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
 	print("Cube; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
-	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
+	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ)+"/"+str(ChunkID))
 	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
 	print("Light Value: "+str(LightValue))

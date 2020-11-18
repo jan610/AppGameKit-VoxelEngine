@@ -4,7 +4,7 @@ alias=
 app_icon_path=
 notif_icon_path=
 app_name=
-app_type=0
+app_type=2
 game_circle_api_key=
 keystore_path=
 orientation=0
@@ -55,25 +55,23 @@ FILE_3=json.agc;-1
 FILE_4=main.agc;-1
 FILE_5=noise.agc;-1
 FILE_6=media%2Fterrain.json;-1
-FILE_7=voxel.agc;-1
-FILE_8=threadnoise.agc;-1
+FILE_7=threadnoise.agc;-1
+FILE_8=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;main.agc;12;0
-FILE_NAME_1=0;noise.agc;0;1
-FILE_NAME_2=0;media%2Fterrain.json;1611;2
-FILE_NAME_3=0;voxel.agc;292;3
-FILE_NAME_4=1;threadnoise.agc;0;4
+FILE_NAME_0=0;main.agc;178;0
+FILE_NAME_1=1;voxel.agc;316;1
 
 [watchvariables]
 watch_variable=@Version;
-watch_variable=Border.Min.X;
+watch_variable=CubeX;
+watch_variable=CubeY;
 watch_variable=CubeZ;
-watch_variable=LocalX;
-watch_variable=LocalY;
-watch_variable=LocalZ;
-watch_variable=OffsetX;
+watch_variable=Voxel_ChunkMemblock.length;
 watch_variable=Voxel_ChunkPosition.length;
-watch_variable=Voxel_ChunkSize;
-watch_variable=Width;
+watch_variable=World.ChunkID.length;
+watch_variable=World.ChunkID[0,0].length;
+watch_variable=World.ChunkID[0].length;
+watch_variable=World.ChunkID[ChunkX,ChunkY,ChunkZ];
+watch_variable=World.Chunk[ChunkID].ObjectID;
 
