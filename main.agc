@@ -20,7 +20,7 @@ SetWindowAllowResize( 1 ) // allow the user to resize the window
 // set display properties
 SetVirtualResolution( 1024, 768 ) // doesn't have to match the window
 SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobile devices
-SetSyncRate( 60, 0 ) // 30fps instead of 60 to save battery
+SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
 SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
 SetPrintSize(16)
@@ -44,7 +44,7 @@ Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
 
 World as WorldData
 
-Voxel_Init(World,16,32,2,32,TERRAIN_IMG)
+Voxel_Init(World,16,128,1,128,TERRAIN_IMG)
 
 Noise_Init()
 Noise_Seed(257)
@@ -95,11 +95,10 @@ next ChunkX
 //~Filepath$="Raw:"+ReadPath$+"media/world.json"
 Voxel_SaveWorld(WORLD_JSON, World)
 
-//~SpawnX#=World.ChunkID.length/2*16
-//~SpawnY#=World.ChunkID[0].length*16
-//~SpawnZ#=World.ChunkID[0,0].length/2*16
-//~SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
-
+SpawnX#=World.ChunkID.length*16/2
+SpawnY#=World.ChunkID[0].length*16
+SpawnZ#=World.ChunkID[0,0].length*16/2
+SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 PreviewImageID=LoadImage(PREVIEW_IMG)
 SetImageMinFilter(PreviewImageID,1)
@@ -125,6 +124,17 @@ do
     NewCameraX#=GetCameraX(1)
     NewCameraY#=GetCameraY(1)
     NewCameraZ#=GetCameraZ(1)
+    
+    PointerX#=GetPointerX()
+    PointerY#=GetPointerY()
+    
+ 	PointerDirX#=Get3DVectorXFromScreen(PointerX#,PointerY#)
+	PointerDirY#=Get3DVectorYFromScreen(PointerX#,PointerY#)
+	PointerDirZ#=Get3DVectorZFromScreen(PointerX#,PointerY#)
+	
+	PointerWorldX#=NewCameraX#+PointerDirX#*99
+	PointerWorldY#=NewCameraY#+PointerDirY#*99
+	PointerWorldZ#=NewCameraZ#+PointerDirZ#*99
 
 //~	if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
 //~		NewCameraX#=GetObjectRayCastSlideX(0)
@@ -134,17 +144,10 @@ do
 //~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
 //~	endif
 
-	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
-	if ChunkUpdateSwitch=1 then Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,6)
-
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
-	
- 	PointerX#=Get3DVectorXFromScreen(GetPointerX(),GetPointerY())
-	PointerY#=Get3DVectorYFromScreen(GetPointerX(),GetPointerY())
-	PointerZ#=Get3DVectorZFromScreen(GetPointerX(),GetPointerY())
 
-	HitObjectID=ObjectRayCast(0,GetCameraX(1),GetCameraY(1),GetCameraZ(1),PointerX#*9999,PointerY#*9999,PointerZ#*9999)
+	HitObjectID=ObjectRayCast(0,NewCameraX#,NewCameraY#,NewCameraZ#,PointerWorldX#,PointerWorldY#,PointerWorldZ#)
 	if HitObjectID>0
 		HitPositionX#=GetObjectRayCastX(0)
 		HitPositionY#=GetObjectRayCastY(0)
@@ -160,15 +163,15 @@ do
 
 		SetObjectPosition(PreviewObjectID,HitGridX,HitGridY,HitGridZ)
 
-		ChunkX=trunc(HitGridX/Voxel_ChunkSize)
-		ChunkY=trunc(HitGridY/Voxel_ChunkSize)
-		ChunkZ=trunc(HitGridZ/Voxel_ChunkSize)
-		ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
-		CubeX=Mod(HitGridX,Voxel_ChunkSize)
-		CubeY=Mod(HitGridY,Voxel_ChunkSize)
-		CubeZ=Mod(HitGridZ,Voxel_ChunkSize)
-		BlockType=Voxel_GetBlockTypeFromChunk(World,ChunkID,HitGridX,HitGridY,HitGridZ)
-		LightValue=Voxel_GetBlockLight(World,HitGridX,HitGridY+1,HitGridZ)
+//~		ChunkX=trunc(HitGridX/Voxel_ChunkSize)
+//~		ChunkY=trunc(HitGridY/Voxel_ChunkSize)
+//~		ChunkZ=trunc(HitGridZ/Voxel_ChunkSize)
+//~		ChunkID=World.ChunkID[ChunkX,ChunkY,ChunkZ]
+//~		CubeX=Mod(HitGridX,Voxel_ChunkSize)
+//~		CubeY=Mod(HitGridY,Voxel_ChunkSize)
+//~		CubeZ=Mod(HitGridZ,Voxel_ChunkSize)
+//~		BlockType=Voxel_GetBlockTypeFromChunk(World,ChunkID,HitGridX,HitGridY,HitGridZ)
+		LightValue=Voxel_GetBlockLight(World,HitGridX,HitGridY,HitGridZ)
 		
 //~		SetPointLightPosition(LightID,HitPositionX#+HitNormalX#,HitPositionY#+HitNormalY#,HitPositionZ#+HitNormalZ#)
 	endif
@@ -246,6 +249,9 @@ do
 			next index
 		endif
 	endif
+	
+	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
+	if ChunkUpdateSwitch=1 then Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,4)
 
  	// TODO: Needs a click to reload
  	
@@ -279,15 +285,15 @@ do
 
 	// TODO A complete Logging by pressing any key
     print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
-	print("Cube; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
-	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ)+"/"+str(ChunkID))
+	print("Cube; "+str(HitGridX)+","+str(HitGridY)+","+str(HitGridZ))
+//~	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ)+"/"+str(ChunkID))
 	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
 	print("Light Value: "+str(LightValue))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
 	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
 	
-	Step3DPhysicsWorld()
+//~	Step3DPhysicsWorld()
 	
     Sync()
 loop

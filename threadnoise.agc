@@ -16,3 +16,7 @@ function TN_WaitForNoise(MemblockID)
 		Result=GetMemblockInt(MemblockID,0)
 	until Result=1
 endfunction
+
+function TN_GetNoiseReady(MemblockID)
+	Result=GetMemblockInt(MemblockID,0)
+endfunction Result

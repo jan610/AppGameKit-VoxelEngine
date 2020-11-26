@@ -59,8 +59,9 @@ FILE_7=threadnoise.agc;-1
 FILE_8=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;main.agc;178;0
-FILE_NAME_1=1;voxel.agc;316;1
+FILE_NAME_0=0;main.agc;136;0
+FILE_NAME_1=0;threadnoise.agc;13;1
+FILE_NAME_2=0;voxel.agc;1497;2
 
 [watchvariables]
 watch_variable=@Version;
