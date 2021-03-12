@@ -59,9 +59,9 @@ FILE_7=threadnoise.agc;-1
 FILE_8=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;main.agc;136;0
-FILE_NAME_1=0;threadnoise.agc;13;1
-FILE_NAME_2=0;voxel.agc;1497;2
+FILE_NAME_0=0;main.agc;29;0
+FILE_NAME_1=0;threadnoise.agc;0;1
+FILE_NAME_2=0;voxel.agc;174;2
 
 [watchvariables]
 watch_variable=@Version;
@@ -76,3 +76,5 @@ watch_variable=World.ChunkID[0].length;
 watch_variable=World.ChunkID[ChunkX,ChunkY,ChunkZ];
 watch_variable=World.Chunk[ChunkID].ObjectID;
 
+[project]
+description=

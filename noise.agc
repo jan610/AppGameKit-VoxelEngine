@@ -5,7 +5,7 @@ type GradType
 endtype
 
 function Noise_Init()
-	global dim Grads[12] as GradType
+	local Grads as GradType[12]
 	
 	Grads[0].x = 1
 	Grads[0].y = 1

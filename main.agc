@@ -4,6 +4,7 @@
 // show all errors
 //~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 SetErrorMode(2)
+#renderer "Basic"
 
 #include "constants.agc"
 #include "core.agc"
@@ -14,27 +15,27 @@ SetErrorMode(2)
 
 // set window properties
 SetWindowTitle( "VoxelEngine" )
-SetWindowSize( 1024, 768, 0 )
+SetWindowSize( 1280, 800, 0 )
 SetWindowAllowResize( 1 ) // allow the user to resize the window
 
 // set display properties
-SetVirtualResolution( 1024, 768 ) // doesn't have to match the window
+SetVirtualResolution( 100, 100 ) // doesn't have to match the window
 SetOrientationAllowed( 1, 1, 1, 1 ) // allow both portrait and landscape on mobile devices
 SetSyncRate( 0, 0 ) // 30fps instead of 60 to save battery
-SetScissor( 0,0,0,0 ) // use the maximum available screen space, no black borders
+SetScissor(0,0,0,0) // use the maximum available screen space, no black borders
 UseNewDefaultFonts( 1 )
-SetPrintSize(16)
+SetPrintSize(2)
 
 SetAntialiasMode(1)
 SetCameraRange(1,0.25,100)
 SetFogMode(1)
 SetFogRange(80,99)
 SetSkyBoxVisible(1)
-SetGenerateMipmaps(0)
+SetGenerateMipmaps(1)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
 
-Create3DPhysicsWorld(5)
+//~Create3DPhysicsWorld(5)
 
 //~local Subimages as SubimageData[]
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
@@ -148,6 +149,7 @@ do
 	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
 
 	HitObjectID=ObjectRayCast(0,NewCameraX#,NewCameraY#,NewCameraZ#,PointerWorldX#,PointerWorldY#,PointerWorldZ#)
+	print(GetObjectRayCastNumHits())
 	if HitObjectID>0
 		HitPositionX#=GetObjectRayCastX(0)
 		HitPositionY#=GetObjectRayCastY(0)
@@ -287,11 +289,11 @@ do
     print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
 	print("Cube; "+str(HitGridX)+","+str(HitGridY)+","+str(HitGridZ))
 //~	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ)+"/"+str(ChunkID))
-	print("Object ID: "+str(HitObjectID))
+//~	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
 	print("Light Value: "+str(LightValue))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
-	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
+//~	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
 	
 //~	Step3DPhysicsWorld()
 	
