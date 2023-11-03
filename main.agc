@@ -8,7 +8,6 @@ SetErrorMode(2)
 #include "constants.agc"
 #include "core.agc"
 #include "json.agc"
-#include "noise.agc"
 #include "voxel.agc"
 #include "camera.agc"
 
@@ -34,7 +33,7 @@ SetGenerateMipmaps(0)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
 
-Create3DPhysicsWorld(5)
+//~Create3DPhysicsWorld(5)
 
 //~local Subimages as SubimageData[]
 //~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
@@ -44,56 +43,16 @@ Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
 
 World as WorldData
 
-Voxel_Init(World,16,256,16,256,TERRAIN_IMG)
+Voxel_Init(World,16,512,64,512,TERRAIN_IMG,"TestWorld")
 
-Noise_Init()
-Noise_Seed(257)
-/*
-freq1#=32.0
-freq2#=12.0
-freq3#=2.0
-for X=0 to World.Terrain.length
-	for Y=0 to World.Terrain[0].length
-		for Z=0 to World.Terrain[0,0].length
-			Value1#=Noise_Perlin2(X/freq1#,Z/freq1#)*World.Terrain[0].length
-			Value2#=Noise_Perlin3(X/freq2#,Y/freq2#,Z/freq2#)
-			MaxGrass=(World.Terrain[0].length*0.7)+Value1#/2
-			MaxDirt=(World.Terrain[0].length*0.64)+Value1#/2
-			MaxStone=(World.Terrain[0].length*0.4)+Value1#/2
-			if Y>MaxDirt and Y<=MaxGrass
-				World.Terrain[X,Y,Z].BlockType=1
-			elseif Y>MaxStone and Y<=MaxDirt
-				World.Terrain[X,Y,Z].BlockType=3
-			elseif Y<=MaxStone
-				World.Terrain[X,Y,Z].BlockType=2
-				Value3#=Noise_Perlin3(X/freq3#,Y/freq3#,Z/freq3#)
-				if Value3#>0.68 then World.Terrain[X,Y,Z].BlockType=4
-			endif
-			if Value2#>0.5 then World.Terrain[X,Y,Z].BlockType=0
-			World.Terrain[X,Y,Z].LightValue=2
-		next Z
-	next Y
-next X
+SetupNoise (1,1,2,0.5)
 
-for ChunkX=0 to World.Chunk.length
-	for ChunkY=0 to World.Chunk[0].length
-		for ChunkZ=0 to World.Chunk[0,0].length
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.X=ChunkX*Voxel_ChunkSize+1
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Y=ChunkY*Voxel_ChunkSize+1
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Min.Z=ChunkZ*Voxel_ChunkSize+1
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.X=ChunkX*Voxel_ChunkSize+Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Y=ChunkY*Voxel_ChunkSize+Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkY,ChunkZ].Border.Max.Z=ChunkZ*Voxel_ChunkSize+Voxel_ChunkSize
-//~			Voxel_UpdateLight(World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-			Voxel_CreateObject(Faceimages,World.Chunk[ChunkX,ChunkY,ChunkZ],World)
-		next ChunkZ
-	next ChunkY
-next ChunkX
-*/
+
+TemplateCubeID=CreateObjectBox(1,1,1)
 
 //~ReadPath$=GetReadPath()
 //~Filepath$="Raw:"+ReadPath$+"media/world.json"
-Voxel_SaveWorld(WORLD_JSON, World)
+//~Voxel_SaveWorld(WORLD_JSON, World)
 
 SpawnX#=World.Terrain.length/2
 SpawnY#=World.Terrain[0].length
@@ -135,17 +94,19 @@ do
 //~	endif
 
 	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
-	if ChunkUpdateSwitch=1 then Voxel_UpdateObjects(Faceimages,World,NewCameraX#,NewCameraY#,NewCameraZ#,2)
+	if ChunkUpdateSwitch=1 then Voxel_UpdateChunks(Faceimages,World,NewCameraX#,NewCameraZ#,3)
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
-	BlockType=Voxel_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
+	BlockType=Core_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
 
+	Pointer2DX#=GetPointerX()
+	Pointer2DY#=GetPointerY()
 	
- 	PointerX#=Get3DVectorXFromScreen(GetPointerX(),GetPointerY())
-	PointerY#=Get3DVectorYFromScreen(GetPointerX(),GetPointerY())
-	PointerZ#=Get3DVectorZFromScreen(GetPointerX(),GetPointerY())
+ 	Pointer3DX#=Get3DVectorXFromScreen(Pointer2DX#,Pointer2DY#)
+	Pointer3DY#=Get3DVectorYFromScreen(Pointer2DX#,Pointer2DY#)
+	Pointer3DZ#=Get3DVectorZFromScreen(Pointer2DX#,Pointer2DY#)
 
-	HitObjectID=ObjectRayCast(0,GetCameraX(1),GetCameraY(1),GetCameraZ(1),PointerX#*9999,PointerY#*9999,PointerZ#*9999)
+	HitObjectID=ObjectRayCast(0,NewCameraX#,NewCameraY#,NewCameraZ#,NewCameraX#+Pointer3DX#*99,NewCameraY#+Pointer3DY#*99,NewCameraZ#+Pointer3DZ#*99)
 	if HitObjectID>0
 		HitPositionX#=GetObjectRayCastX(0)
 		HitPositionY#=GetObjectRayCastY(0)
@@ -155,60 +116,52 @@ do
 		HitNormalY#=GetObjectRayCastNormalY(0)
 		HitNormalZ#=GetObjectRayCastNormalZ(0)
 
-		HitGridX=round(HitPositionX#-HitNormalX#*0.5)
-		HitGridY=round(HitPositionY#-HitNormalY#*0.5)
-		HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
-
-		SetObjectPosition(PreviewObjectID,HitGridX,HitGridY,HitGridZ)
-
-		ChunkX=round((HitGridX-1)/Voxel_ChunkSize)
-		ChunkY=round((HitGridY-1)/Voxel_ChunkSize)
-		ChunkZ=round((HitGridZ-1)/Voxel_ChunkSize)
+		HitInsideX=round(HitPositionX#-HitNormalX#*0.5)
+		HitInsideY=round(HitPositionY#-HitNormalY#*0.5)
+		HitInsideZ=round(HitPositionZ#-HitNormalZ#*0.5)
 		
-		CubeX=1+Mod(HitGridX-1,Voxel_ChunkSize)
-		CubeY=1+Mod(HitGridY-1,Voxel_ChunkSize)
-		CubeZ=1+Mod(HitGridZ-1,Voxel_ChunkSize)
+		HitOutsideX=round(HitPositionX#+HitNormalX#*0.5)
+		HitOutsideY=round(HitPositionY#+HitNormalY#*0.5)
+		HitOutsideZ=round(HitPositionZ#+HitNormalZ#*0.5)
 		
-		LightValue=World.Terrain[HitGridX,HitGridY+1,HitGridZ].LightValue
+		SetObjectPosition(PreviewObjectID,HitInsideX,HitInsideY,HitInsideZ)
+
+		ChunkX=trunc((HitInsideX-1)/Voxel_ChunkSize)
+		ChunkZ=trunc((HitInsideZ-1)/Voxel_ChunkSize)
+		
+		CubeX=1+Mod(HitInsideX-1,Voxel_ChunkSize)
+		CubeY=HitInsideY
+		CubeZ=1+Mod(HitInsideZ-1,Voxel_ChunkSize)
+		
+		InsideBlockLight=World.Terrain[HitInsideX,HitInsideY,HitInsideZ].BlockLight
+		OutsideBlockLight=World.Terrain[HitOutsideX,HitOutsideY,HitOutsideZ].BlockLight
+		OutsideSunLight=World.Terrain[HitOutsideX,HitOutsideY,HitOutsideZ].SunLight
+		
+		Height=World.Height[HitInsideX,HitInsideZ]
 		
 //~		SetPointLightPosition(LightID,HitPositionX#+HitNormalX#,HitPositionY#+HitNormalY#,HitPositionZ#+HitNormalZ#)
 	endif
 
     if GetRawMouseLeftPressed()=1
-    	if HitObjectID>0
-			HitGridX=round(HitPositionX#+HitNormalX#*0.5)
-			HitGridY=round(HitPositionY#+HitNormalY#*0.5)
-			HitGridZ=round(HitPositionZ#+HitNormalZ#*0.5)
-
-			Voxel_AddCubeToObject(Faceimages,World,HitGridX,HitGridY,HitGridZ,BlockType)
-		endif
+    	if HitObjectID>0 then Voxel_AddCubeToObject(World,HitOutsideX,HitOutsideY,HitOutsideZ,BlockType)
 	endif
 
     if GetRawMouseRightPressed()=1
-    	if HitObjectID>0
-			HitGridX=round(HitPositionX#-HitNormalX#*0.5)
-			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
-			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
-
-			BlockType=Voxel_RemoveCubeFromObject(Faceimages,World,HitGridX,HitGridY,HitGridZ)
-		endif
+    	if HitObjectID>0 then BlockType=Voxel_RemoveCubeFromObject(World,HitInsideX,HitInsideY,HitInsideZ)
 	endif
 	
 	if GetRawKeyPressed(KEY_SPACE)
 		if HitObjectID>0
 			ExplosionRadius=2
-			HitGridX=round(HitPositionX#-HitNormalX#*0.5)
-			HitGridY=round(HitPositionY#-HitNormalY#*0.5)
-			HitGridZ=round(HitPositionZ#-HitNormalZ#*0.5)
 			
 			CubeList as Int3Data[]
 			TempCubePos as Int3Data
-			for CubeX=HitGridX-ExplosionRadius to HitGridX+ExplosionRadius
-				for CubeY=HitGridY-ExplosionRadius to HitGridY+ExplosionRadius
-					for CubeZ=HitGridZ-ExplosionRadius to HitGridZ+ExplosionRadius
-						DistX=CubeX-HitGridX
-						DistY=CubeY-HitGridY
-						DistZ=CubeZ-HitGridZ
+			for CubeX=HitInsideX-ExplosionRadius to HitInsideX+ExplosionRadius
+				for CubeY=HitInsideY-ExplosionRadius to HitInsideY+ExplosionRadius
+					for CubeZ=HitInsideZ-ExplosionRadius to HitInsideZ+ExplosionRadius
+						DistX=CubeX-HitInsideX
+						DistY=CubeY-HitInsideY
+						DistZ=CubeZ-HitInsideZ
 						Dist#=sqrt(DistX*DistX+DistY*DistY+DistZ*DistZ)
 						if Dist#<=ExplosionRadius+0.5 and World.Terrain[CubeX,CubeY,CubeZ].BlockType>0
 							TempCubePos.X=CubeX
@@ -220,31 +173,8 @@ do
 				next CubeY
 			next CubeX
 			
-			Voxel_RemoveCubeListFromObject(Faceimages,World,CubeList)
-			
-			for index=CubeList.length to 0 step -1
-				X=CubeList[index].X
-				Y=CubeList[index].Y
-				Z=CubeList[index].Z
-				CubeList.remove(index)
-				
-				ObjectID=CreateObjectBox(0.9,0.9,0.9)
-				SetObjectPosition(ObjectID,X,Y,Z)
-				Create3DPhysicsDynamicBody(ObjectID)
-				SetObjectShapeBox(ObjectID)
-//~				SetObjectColor(ObjectID,26,71,11,255)
-				
-				DistX=X-HitGridX
-				DistY=1.0+Y-HitGridY
-				DistZ=Z-HitGridZ
-				Dist#=sqrt(DistX*DistX+DistY*DistY+DistZ*DistZ)
-				DirX#=DistX/Dist#
-				DirY#=DistY/Dist#
-				DirZ#=DistZ/Dist#
-				VectorID=CreateVector3(DirX#,DirY#,DirZ#)
-				SetObject3DPhysicsLinearVelocity(ObjectID,VectorID,50)
-				DeleteVector3(VectorID)
-			next index
+			Voxel_RemoveCubeListFromObject(World,CubeList)
+			CubeList.length=-1
 		endif
 	endif
 
@@ -281,14 +211,19 @@ do
 	// TODO A complete Logging by pressing any key
     print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
 	print("Cube; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
-	print("Chunk; "+str(ChunkX)+","+str(ChunkY)+","+str(ChunkZ))
+	print("HitInside; "+str(HitInsideX)+","+str(HitInsideY)+","+str(HitInsideZ))
+	print("HitOutside; "+str(HitOutsideX)+","+str(HitOutsideY)+","+str(HitOutsideZ))
+	print("Height; "+str(Height))
+	print("Chunk; "+str(ChunkX)+","+str(ChunkZ))
 	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
-	print("Light Value: "+str(LightValue))
+	print("Inside Block Light: "+str(InsideBlockLight))
+	print("OutsideBlock Light: "+str(OutsideBlockLight))
+	print("Outside Sun Light: "+str(OutsideSunLight))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
+	print("Chunks in List: "+str(Voxel_LoadChunkList.length))
 	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
-	
-	Step3DPhysicsWorld()
+	print("Save Time#: "+str(Voxel_DebugSaveTime#))
 	
     Sync()
 loop
