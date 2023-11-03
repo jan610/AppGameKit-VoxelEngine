@@ -54,10 +54,10 @@ TemplateCubeID=CreateObjectBox(1,1,1)
 //~Filepath$="Raw:"+ReadPath$+"media/world.json"
 //~Voxel_SaveWorld(WORLD_JSON, World)
 
-SpawnX#=World.Terrain.length/2
-SpawnY#=World.Terrain[0].length
-SpawnZ#=World.Terrain[0,0].length/2
-SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
+SpawnX#=Voxel_BlockMax.X/2
+SpawnY#=Voxel_BlockMax.Y
+SpawnZ#=Voxel_BlockMax.Z/2
+SetCameraPosition(1,16,32,16)
 
 
 PreviewImageID=LoadImage(PREVIEW_IMG)
@@ -126,28 +126,36 @@ do
 		
 		SetObjectPosition(PreviewObjectID,HitInsideX,HitInsideY,HitInsideZ)
 
-		ChunkX=trunc((HitInsideX-1)/Voxel_ChunkSize)
-		ChunkZ=trunc((HitInsideZ-1)/Voxel_ChunkSize)
+		ChunkX=trunc(HitInsideX/Voxel_ChunkSize)
+		ChunkZ=trunc(HitInsideZ/Voxel_ChunkSize)
+		ChunkX=Core_Clamp(ChunkX,0,Voxel_ChunkMax.X)
+		ChunkZ=Core_Clamp(ChunkZ,0,Voxel_ChunkMax.Z)
 		
-		CubeX=1+Mod(HitInsideX-1,Voxel_ChunkSize)
-		CubeY=HitInsideY
-		CubeZ=1+Mod(HitInsideZ-1,Voxel_ChunkSize)
+		LocalX=Mod(HitInsideX,Voxel_ChunkSize)
+		LocalY=HitInsideY
+		LocalZ=Mod(HitInsideZ,Voxel_ChunkSize)
+		if LocalX<0 then inc LocalX,Voxel_ChunkSize
+		if LocalZ<0 then inc LocalZ,Voxel_ChunkSize
 		
-		InsideBlockLight=World.Terrain[HitInsideX,HitInsideY,HitInsideZ].BlockLight
-		OutsideBlockLight=World.Terrain[HitOutsideX,HitOutsideY,HitOutsideZ].BlockLight
-		OutsideSunLight=World.Terrain[HitOutsideX,HitOutsideY,HitOutsideZ].SunLight
+		InsideBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,LocalY,LocalZ]
+//~		OutsideBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[HitOutsideX,HitOutsideY,HitOutsideZ]
+//~		OutsideSunLight=World.Chunk[ChunkX,ChunkZ].SunLight[HitOutsideX,HitOutsideY,HitOutsideZ]
 		
-		Height=World.Height[HitInsideX,HitInsideZ]
+		Height=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
 		
 //~		SetPointLightPosition(LightID,HitPositionX#+HitNormalX#,HitPositionY#+HitNormalY#,HitPositionZ#+HitNormalZ#)
 	endif
 
     if GetRawMouseLeftPressed()=1
-    	if HitObjectID>0 then Voxel_AddCubeToObject(World,HitOutsideX,HitOutsideY,HitOutsideZ,BlockType)
+    	if HitObjectID>0
+    		Voxel_AddCubeToObject(World,HitOutsideX,HitOutsideY,HitOutsideZ,BlockType)
+    	endif
 	endif
 
     if GetRawMouseRightPressed()=1
-    	if HitObjectID>0 then BlockType=Voxel_RemoveCubeFromObject(World,HitInsideX,HitInsideY,HitInsideZ)
+    	if HitObjectID>0
+    		BlockType=Voxel_RemoveCubeFromObject(World,HitInsideX,HitInsideY,HitInsideZ)
+    	endif
 	endif
 	
 	if GetRawKeyPressed(KEY_SPACE)
@@ -156,22 +164,22 @@ do
 			
 			CubeList as Int3Data[]
 			TempCubePos as Int3Data
-			for CubeX=HitInsideX-ExplosionRadius to HitInsideX+ExplosionRadius
-				for CubeY=HitInsideY-ExplosionRadius to HitInsideY+ExplosionRadius
-					for CubeZ=HitInsideZ-ExplosionRadius to HitInsideZ+ExplosionRadius
-						DistX=CubeX-HitInsideX
-						DistY=CubeY-HitInsideY
-						DistZ=CubeZ-HitInsideZ
+			for GlobalX=HitInsideX-ExplosionRadius to HitInsideX+ExplosionRadius
+				for GlobalY=HitInsideY-ExplosionRadius to HitInsideY+ExplosionRadius
+					for GlobalZ=HitInsideZ-ExplosionRadius to HitInsideZ+ExplosionRadius
+						DistX=GlobalX-HitInsideX
+						DistY=GlobalY-HitInsideY
+						DistZ=GlobalZ-HitInsideZ
 						Dist#=sqrt(DistX*DistX+DistY*DistY+DistZ*DistZ)
-						if Dist#<=ExplosionRadius+0.5 and World.Terrain[CubeX,CubeY,CubeZ].BlockType>0
-							TempCubePos.X=CubeX
-							TempCubePos.Y=CubeY
-							TempCubePos.Z=CubeZ
+						if Dist#<=ExplosionRadius+0.5 and Voxel_GetBlockType(World,GlobalX,GlobalY,GlobalZ)>0
+							TempCubePos.X=GlobalX
+							TempCubePos.Y=GlobalY
+							TempCubePos.Z=GlobalZ
 							CubeList.insert(TempCubePos)
 						endif
-					next CubeZ
-				next CubeY
-			next CubeX
+					next GlobalZ
+				next GlobalY
+			next GlobalX
 			
 			Voxel_RemoveCubeListFromObject(World,CubeList)
 			CubeList.length=-1
@@ -210,7 +218,7 @@ do
 
 	// TODO A complete Logging by pressing any key
     print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
-	print("Cube; "+str(CubeX)+","+str(CubeY)+","+str(CubeZ))
+	print("Local; "+str(LocalX)+","+str(LocalY)+","+str(LocalZ))
 	print("HitInside; "+str(HitInsideX)+","+str(HitInsideY)+","+str(HitInsideZ))
 	print("HitOutside; "+str(HitOutsideX)+","+str(HitOutsideY)+","+str(HitOutsideZ))
 	print("Height; "+str(Height))
@@ -218,11 +226,12 @@ do
 	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
 	print("Inside Block Light: "+str(InsideBlockLight))
-	print("OutsideBlock Light: "+str(OutsideBlockLight))
-	print("Outside Sun Light: "+str(OutsideSunLight))
+//~	print("OutsideBlock Light: "+str(OutsideBlockLight))
+//~	print("Outside Sun Light: "+str(OutsideSunLight))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
 	print("Chunks in List: "+str(Voxel_LoadChunkList.length))
 	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
+	Print("Itteration Time: "+str(Voxel_DebugTime#))
 	print("Save Time#: "+str(Voxel_DebugSaveTime#))
 	
     Sync()
