@@ -377,7 +377,7 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 						Voxel_TempChunkList.Hash=ChunkX+(ChunkZ*Voxel_ChunkMax.X)
 						if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1
 							Voxel_LoadChunkList.insert(Voxel_TempChunkList)
-							Voxel_CreateBlocks(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
+							if World.Chunk[ChunkX,ChunkZ].ObjectID=0 then Voxel_CreateBlocks(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
 						endif
 					endif
 				next ChunkZ
@@ -430,10 +430,9 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 			ChunkX=Voxel_LoadChunkList[0].X
 			ChunkZ=Voxel_LoadChunkList[0].Z
 			
-			if World.Chunk[ChunkX,ChunkZ].ObjectID=0				
+			if World.Chunk[ChunkX,ChunkZ].ObjectID=0
 				Voxel_UpdateChunkSunLight(World,ChunkX,ChunkZ,15)
 				Voxel_CreateChunk(Faceimages,World,ChunkX,ChunkZ)
-				World.Chunk[ChunkX,ChunkZ].Visible=1
 			else
 				Voxel_UpdateChunkSunLight(World,ChunkX,ChunkZ,15)
 				Voxel_UpdateChunk(Faceimages,World,ChunkX,ChunkZ)
@@ -557,105 +556,129 @@ function Voxel_CreateBlocks(Chunk ref as Chunkdata,ChunkX,ChunkZ)
 	next LocalX
 endfunction
 
-//~function Voxel_CreateBlockLight(World ref as WorldData,LocalX,LocalY,LocalZ)	
-//~	LightIntensitiy=Voxel_IsLightBlock(World,LocalX,LocalY,LocalZ)
-//~	if LightIntensitiy>Voxel_AmbientLight
-//~		Voxel_UpdateBlockLight(World,LocalX,LocalY,LocalZ,LightIntensitiy)
-//~	endif
-//~endfunction
+function Voxel_CreateBlockLight(World ref as WorldData,ChunkX,ChunkZ,LocalX,LocalY,LocalZ)	
+	LightIntensitiy=Voxel_IsLightBlock(World.Chunk[ChunkX,ChunkZ],LocalX,LocalY,LocalZ)
+	if LightIntensitiy>Voxel_AmbientLight
+		Voxel_UpdateBlockLight(World,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,LightIntensitiy)
+	endif
+endfunction
 
-//~function Voxel_UpdateBlockLight(World ref as WorldData,StartX,StartY,StartZ,StartBlockLight as integer)
-//~	local FrontierTemp as Int3Data
-//~	local Frontier as Int3Data[]
+function Voxel_UpdateBlockLight(World ref as WorldData,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,StartBlockLight as integer)
+	local FrontierTemp as Int3Data
+	local Frontier as Int3Data[]
 
-//~	FrontierTemp.X=StartX
-//~	FrontierTemp.Y=StartY
-//~	FrontierTemp.Z=StartZ
-//~	Frontier.insert(FrontierTemp)
-//~	
-//~	World.Terrain[StartX,StartY,StartZ].BlockLight=StartBlockLight
-//~	
-//~	while Frontier.length>=0
-//~		LocalX=Frontier[0].X
-//~		LocalY=Frontier[0].Y
-//~		LocalZ=Frontier[0].Z
-//~		Frontier.remove(0)
-//~		for NeighbourID=0 to 5
-//~			NeighbourX=LocalX+Voxel_Neighbors[NeighbourID].X
-//~			NeighbourY=LocalY+Voxel_Neighbors[NeighbourID].Y
-//~			NeighbourZ=LocalZ+Voxel_Neighbors[NeighbourID].Z
-//~			if Voxel_IsTransparentBlock(World,NeighbourX,NeighbourY,NeighbourZ)=1
-//~				if World.Terrain[LocalX,LocalY,LocalZ].BlockLight>World.Terrain[NeighbourX,NeighbourY,NeighbourZ].BlockLight+1
-//~					FrontierTemp.X=NeighbourX
-//~					FrontierTemp.Y=NeighbourY
-//~					FrontierTemp.Z=NeighbourZ
-//~					Frontier.insert(FrontierTemp)
-//~					World.Terrain[NeighbourX,NeighbourY,NeighbourZ].BlockLight=World.Terrain[LocalX,LocalY,LocalZ].BlockLight-1
-//~					
-//~					ChunkX=trunc((NeighbourX-1)/Voxel_ChunkSize)
-//~					ChunkZ=trunc((NeighbourZ-1)/Voxel_ChunkSize)
-//~					Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
-//~				endif
-//~			endif
-//~		next NeighbourID
-//~	endwhile
-//~endfunction
+	FrontierTemp.X=ChunkX*Voxel_ChunkSize+LocalX
+	FrontierTemp.Y=LocalY
+	FrontierTemp.Z=ChunkZ*Voxel_ChunkSize+LocalZ
+	Frontier.insert(FrontierTemp)
+	
+	World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,LocalY,LocalZ]=StartBlockLight
+	
+	while Frontier.length>=0
+		GlobalX=Frontier[0].X
+		GlobalY=Frontier[0].Y
+		GlobalZ=Frontier[0].Z
+		Frontier.remove(0)
+		
+		for NeighbourID=0 to 5
+			NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
+			NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
+			NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
+			NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
+			NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
+			if NeighbourLocalX<0 or NeighbourY<0 or NeighbourLocalZ<0 then continue
+			NeighbourChunkX=trunc(NeighbourX/Voxel_ChunkSize)
+			NeighbourChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
+			
+			if Voxel_IsTransparentBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ],NeighbourLocalX,NeighbourY,NeighbourLocalZ)=1
+				NeighbourBlockLight=World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
+				CurrentBlockLight=Voxel_GetBlockLight(World,GlobalX,GlobalY,GlobalZ)
+				if CurrentBlockLight>NeighbourBlockLight+1
+					FrontierTemp.X=NeighbourX
+					FrontierTemp.Y=NeighbourY
+					FrontierTemp.Z=NeighbourZ
+					Frontier.insert(FrontierTemp)
+					World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]=CurrentBlockLight-1
+					
+					Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)
+				endif
+			endif
+		next NeighbourID
+	endwhile
+endfunction
 
-//~function Voxel_UpdateBlockShadow(World ref as WorldData,StartX,StartY,StartZ)
-//~	local FrontierTemp as Int3Data
-//~	local Frontier as Int3Data[]
-//~	local TempBlockLight as integer
-//~	local TempSpreadLight as SpreadLightData
+function Voxel_UpdateBlockShadow(World ref as WorldData,ChunkX,ChunkZ,LocalX,LocalY,LocalZ)
+	local FrontierTemp as Int3Data
+	local Frontier as Int3Data[]
+	local TempChunk as ChunkData
+	local TempSpreadLight as SpreadLightData
 
-//~	FrontierTemp.X=StartX
-//~	FrontierTemp.Y=StartY
-//~	FrontierTemp.Z=StartZ
-//~	Frontier.insert(FrontierTemp)
-//~	
-//~	while Frontier.length>=0
-//~		LocalX=Frontier[0].X
-//~		LocalY=Frontier[0].Y
-//~		LocalZ=Frontier[0].Z
-//~		Frontier.remove(0)
-//~		TempBlockLight=World.Terrain[LocalX,LocalY,LocalZ].BlockLight
-//~		if TempBlockLight<>Voxel_AmbientLight
-//~			for NeighbourID=0 to 5
-//~				NeighbourX=LocalX+Voxel_Neighbors[NeighbourID].X
-//~				NeighbourY=LocalY+Voxel_Neighbors[NeighbourID].Y
-//~				NeighbourZ=LocalZ+Voxel_Neighbors[NeighbourID].Z
-//~				if Voxel_IsTransparentBlock(World,NeighbourX,NeighbourY,NeighbourZ)=1
-//~					if TempBlockLight>World.Terrain[NeighbourX,NeighbourY,NeighbourZ].BlockLight
-//~						FrontierTemp.X=NeighbourX
-//~						FrontierTemp.Y=NeighbourY
-//~						FrontierTemp.Z=NeighbourZ
-//~						Frontier.insert(FrontierTemp)
-//~						
-//~						World.Terrain[LocalX,LocalY,LocalZ].BlockLight=Voxel_AmbientLight
-//~						
-//~						ChunkX=trunc((NeighbourX-1)/Voxel_ChunkSize)
-//~						ChunkZ=trunc((NeighbourZ-1)/Voxel_ChunkSize)
-//~						Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
-//~					else
-//~						TempSpreadLight.X=NeighbourX
-//~						TempSpreadLight.Y=NeighbourY
-//~						TempSpreadLight.Z=NeighbourZ
-//~						TempSpreadLight.Light=World.Terrain[NeighbourX,NeighbourY,NeighbourZ].BlockLight
-//~						Voxel_SpreadLight.insert(TempSpreadLight)
-//~					endif
-//~				endif
-//~			next NeighbourID
-//~		endif
-//~	endwhile
+	FrontierTemp.X=ChunkX*Voxel_ChunkSize+LocalX
+	FrontierTemp.Y=LocalY
+	FrontierTemp.Z=ChunkZ*Voxel_ChunkSize+LocalZ
+	Frontier.insert(FrontierTemp)
+	
+	while Frontier.length>=0
+		GlobalX=Frontier[0].X
+		GlobalY=Frontier[0].Y
+		GlobalZ=Frontier[0].Z
+		Frontier.remove(0)
+		
+		LocalX=Mod(GlobalX,Voxel_ChunkSize)
+		LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+		if LocalX<0 or GlobalY<0 or LocalZ<0 then continue
+		ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+		ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+		CurrentBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,GlobalY,LocalZ]
+		
+		if CurrentBlockLight<>Voxel_AmbientLight
+			for NeighbourID=0 to 5
+				NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
+				NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
+				NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
+				NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
+				NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
+				if NeighbourLocalX<0 or NeighbourY<0 or NeighbourLocalZ<0 then continue
+				NeighbourChunkX=trunc(NeighbourX/Voxel_ChunkSize)
+				NeighbourChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
+				TempChunk=World.Chunk[NeighbourChunkX,NeighbourChunkZ]
+				if Voxel_IsTransparentBlock(TempChunk,NeighbourLocalX,NeighbourY,NeighbourLocalZ)=1
+					NeighbourBlockLight=TempChunk.BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
+					if CurrentBlockLight>NeighbourBlockLight
+						FrontierTemp.X=NeighbourX
+						FrontierTemp.Y=NeighbourY
+						FrontierTemp.Z=NeighbourZ
+						Frontier.insert(FrontierTemp)
+						
+						World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,GlobalY,LocalZ]=Voxel_AmbientLight
+						
+						Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)
+					else
+						TempSpreadLight.X=NeighbourX
+						TempSpreadLight.Y=NeighbourY
+						TempSpreadLight.Z=NeighbourZ
+						TempSpreadLight.Light=NeighbourBlockLight
+						Voxel_SpreadLight.insert(TempSpreadLight)
+					endif
+				endif
+			next NeighbourID
+		endif
+	endwhile
 
-//~	for ID=0 to Voxel_SpreadLight.length-1
-//~		LocalX=Voxel_SpreadLight[ID].X
-//~		LocalY=Voxel_SpreadLight[ID].Y
-//~		LocalZ=Voxel_SpreadLight[ID].Z
-//~		Light=Voxel_SpreadLight[ID].Light
-//~		Voxel_UpdateBlockLight(World,LocalX,LocalY,LocalZ,Light)
-//~	next ID
-//~	Voxel_SpreadLight.length=-1
-//~endfunction
+	for ID=0 to Voxel_SpreadLight.length
+		GlobalX=Voxel_SpreadLight[ID].X
+		GlobalY=Voxel_SpreadLight[ID].Y
+		GlobalZ=Voxel_SpreadLight[ID].Z
+		Light=Voxel_SpreadLight[ID].Light
+		
+		ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+		ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+		LocalX=Mod(GlobalX,Voxel_ChunkSize)
+		LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+//~		Voxel_UpdateBlockLight(World,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,Light)
+	next ID
+	Voxel_SpreadLight.length=-1
+endfunction
 
 //~function Voxel_UpdateSunLight(World ref as WorldData,StartX,StartY,StartZ,StartSunLight as integer)
 //~	local FrontierTemp as Int3Data
@@ -745,16 +768,17 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 			NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
 			NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
 			NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
-			if Voxel_IsGlobalTransparentBlock(World,NeighbourX,NeighbourY,NeighbourZ)=1
-				CurrentSunLight=Voxel_GetSunLight(World,GlobalX,GlobalY,GlobalZ)
-				NeighbourChunkX=trunc(GlobalX/Voxel_ChunkSize)
-				NeighbourChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-				NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
-				NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
-				if NeighbourLocalX<0 or NeighbourLocalZ<0 then continue
-				
+			NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
+			NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
+			if NeighbourLocalX<0 or NeighbourY<0 or NeighbourLocalZ<0 then continue
+			NeighbourChunkX=trunc(NeighbourX/Voxel_ChunkSize)
+			NeighbourChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
+			
+			if Voxel_IsTransparentBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ],NeighbourLocalX,NeighbourY,NeighbourLocalZ)=1
 				NeighbourSunLight=World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
-				if CurrentSunLight>NeighbourSunLight+1 and CurrentSunLight>Voxel_AmbientLight+1
+				
+				CurrentSunLight=Voxel_GetSunLight(World,GlobalX,GlobalY,GlobalZ)
+				if CurrentSunLight>NeighbourSunLight+1
 					FrontierTemp.X=NeighbourX
 					FrontierTemp.Y=NeighbourY
 					FrontierTemp.Z=NeighbourZ
@@ -841,7 +865,7 @@ function Voxel_UpdateHeightAndSunlight(Chunk ref as ChunkData,LocalX,LocalY,Loca
 //~		Chunk.SunLight[LocalX,LocalY,LocalZ]=LightValue
 		LocalY=LocalY-1
 		if LocalY<=1 then Exitfunction
-	until Voxel_IsLocalTransparentBlock(Chunk,LocalX,LocalY,LocalZ)=0
+	until Voxel_IsTransparentBlock(Chunk,LocalX,LocalY,LocalZ)=0
 	Chunk.Height[LocalX,LocalZ]=LocalY
 //~	if LightValue>Voxel_AmbientLight
 //~		Voxel_UpdateSunLight(World,LocalX,LocalY,LocalZ,LightValue)
@@ -850,7 +874,7 @@ function Voxel_UpdateHeightAndSunlight(Chunk ref as ChunkData,LocalX,LocalY,Loca
 //~	endif
 endfunction
 
-function Voxel_IsLocalLightBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
+function Voxel_IsLightBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
 	select Chunk.BlockType[LocalX,LocalY,LocalZ]
 		case 11
 			exitfunction 14
@@ -858,24 +882,8 @@ function Voxel_IsLocalLightBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
 	endselect
 endfunction 0
 
-function Voxel_IsLocalTransparentBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
+function Voxel_IsTransparentBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
 	select Chunk.BlockType[LocalX,LocalY,LocalZ]
-		case 0
-			exitfunction 1
-		endcase
-	endselect
-endfunction 0
-
-function Voxel_IsGlobalLightBlock(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	select Voxel_GetBlockType(World,GlobalX,GlobalY,GlobalZ)
-		case 11
-			exitfunction 14
-		endcase
-	endselect
-endfunction 0
-
-function Voxel_IsGlobalTransparentBlock(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	select Voxel_GetBlockType(World,GlobalX,GlobalY,GlobalZ)
 		case 0
 			exitfunction 1
 		endcase
@@ -912,7 +920,7 @@ function Voxel_AddCubeToObject(World ref as WorldData,GlobalX,GlobalY,GlobalZ,Bl
 //~	World.Terrain[X,Y,Z].BlockLight=Voxel_AmbientLight
 //~	World.Terrain[X,Y,Z].SunLight=Voxel_AmbientLight
 
-//~	Voxel_CreateBlockLight(World,X,Y,Z)
+	Voxel_CreateBlockLight(World,ChunkX,ChunkZ,LocalX,GlobalY,LocalZ)
 	
 	Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
 	Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
@@ -934,7 +942,7 @@ function Voxel_RemoveCubeFromObject(World ref as WorldData,GlobalX,GlobalY,Globa
 	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
 	World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]=0
 	
-//~	Voxel_UpdateBlockShadow(World,X,Y,Z)
+	Voxel_UpdateBlockShadow(World,ChunkX,ChunkZ,LocalX,GlobalY,LocalZ)
 
 	Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
 	Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
