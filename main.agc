@@ -57,8 +57,7 @@ TemplateCubeID=CreateObjectBox(1,1,1)
 SpawnX#=Voxel_BlockMax.X/2
 SpawnY#=Voxel_BlockMax.Y
 SpawnZ#=Voxel_BlockMax.Z/2
-SetCameraPosition(1,16,32,16)
-
+SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
 
 PreviewImageID=LoadImage(PREVIEW_IMG)
 SetImageMinFilter(PreviewImageID,1)

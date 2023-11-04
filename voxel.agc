@@ -119,10 +119,7 @@ global Voxel_SpreadLight as SpreadLightData[]
 global Voxel_TempChunkList as ChunkListData
 global Voxel_TempChunk as ChunkData
 global Voxel_TempObject as ObjectData
-global Voxel_TempInt2 as Int2Data
 global Voxel_TempInt3 as Int3Data
-global Voxel_TempInt2Face as Int2Data
-global Voxel_TempInt3Face as Int3Data
 global Voxel_ChunkView as BorderData
 global Voxel_ChunkMax as Int2Data
 global Voxel_BlockMax as Int3Data
@@ -271,7 +268,7 @@ function Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
 	Voxel_TempChunkList.X=ChunkX
 	Voxel_TempChunkList.Z=ChunkZ
 	Voxel_TempChunkList.Hash=ChunkX+(ChunkZ*Voxel_ChunkMax.X)
-	if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 and Voxel_UnloadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 then Voxel_LoadChunkList.insert(Voxel_TempChunkList)
+	if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 then Voxel_LoadChunkList.insert(Voxel_TempChunkList)
 endfunction
 
 function Voxel_AddChunktoUnloadList(ChunkX,ChunkZ)
@@ -281,60 +278,79 @@ function Voxel_AddChunktoUnloadList(ChunkX,ChunkZ)
 	if Voxel_UnloadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 then Voxel_UnloadChunkList.insert(Voxel_TempChunkList)
 endfunction
 
-function Voxel_GetChunkCoordinates(GlobalX,GlobalZ,TempInt2 ref as Int2Data)
-	TempInt2.X=trunc(GlobalX/Voxel_ChunkSize)
-	TempInt2.Z=trunc(GlobalZ/Voxel_ChunkSize)
-	TempInt2.X=Core_Clamp(TempInt2.X,0,Voxel_ChunkMax.X)
-	TempInt2.Z=Core_Clamp(TempInt2.Z,0,Voxel_ChunkMax.Z)
-endfunction
-
-function Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ,TempInt3 ref as Int3Data)
-	TempInt3.X=Mod(GlobalX,Voxel_ChunkSize)
-	TempInt3.Y=GlobalY
-	TempInt3.Z=Mod(GlobalZ,Voxel_ChunkSize)
-	if TempInt3.X<0 then inc TempInt3.X,Voxel_ChunkSize
-	if TempInt3.Z<0 then inc TempInt3.Z,Voxel_ChunkSize
-endfunction
-
 function Voxel_GetBlockTypeFromChunk(World ref as WorldData,ChunkX,ChunkZ,GlobalX,GlobalY,GlobalZ)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
 endfunction BlockType
 
 function Voxel_GetBlockType(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ, Voxel_TempInt2)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	BlockType=World.Chunk[Voxel_TempInt2.X,Voxel_TempInt2.Z].BlockType[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
 endfunction BlockType
 
 function Voxel_SetBlockType(World ref as WorldData,GlobalX,GlobalY,GlobalZ,BlockType)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ, Voxel_TempInt2)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	World.Chunk[Voxel_TempInt2.X,Voxel_TempInt2.Z].BlockType[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]=BlockType
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]=BlockType
 endfunction
 
 function Voxel_GetBlockLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ, Voxel_TempInt2)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	LightValue=World.Chunk[Voxel_TempInt2.X,Voxel_TempInt2.Z].BlockLight[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	LightValue=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,GlobalY,LocalZ]
 endfunction LightValue
 
 function Voxel_SetBlockLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ,LightValue)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ, Voxel_TempInt2)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	World.Chunk[Voxel_TempInt2.X,Voxel_TempInt2.Z].BlockLight[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]=LightValue
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,GlobalY,LocalZ]=LightValue
 endfunction
 
 function Voxel_GetSunLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ, Voxel_TempInt2)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	LightValue=World.Chunk[Voxel_TempInt2.X,Voxel_TempInt2.Z].SunLight[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	LightValue=World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,GlobalY,LocalZ]
 endfunction LightValue
 
 function Voxel_SetSunLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ,LightValue)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ, Voxel_TempInt2)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ, Voxel_TempInt3)
-	World.Chunk[Voxel_TempInt2.X,Voxel_TempInt2.Z].SunLight[Voxel_TempInt3.X,Voxel_TempInt3.Y,Voxel_TempInt3.Z]=LightValue
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+	if LocalX<0 then LocalX=0
+	if GlobalY<0 then GlobalY=0
+	if LocalZ<0 then LocalZ=0
+	World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,GlobalY,LocalZ]=LightValue
 endfunction
 
 function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldData,CameraX,CameraZ,ViewDistance)	
@@ -355,7 +371,15 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 		
 			for ChunkX=Voxel_ChunkView.Min.X to Voxel_ChunkView.Max.X
 				for ChunkZ=Voxel_ChunkView.Min.Z to Voxel_ChunkView.Max.Z
-					if World.Chunk[ChunkX,ChunkZ].ObjectID=0 then Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
+					if World.Chunk[ChunkX,ChunkZ].ObjectID=0
+						Voxel_TempChunkList.X=ChunkX
+						Voxel_TempChunkList.Z=ChunkZ
+						Voxel_TempChunkList.Hash=ChunkX+(ChunkZ*Voxel_ChunkMax.X)
+						if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1
+							Voxel_LoadChunkList.insert(Voxel_TempChunkList)
+							Voxel_CreateBlocks(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
+						endif
+					endif
 				next ChunkZ
 			next ChunkX
 		next Dist
@@ -407,7 +431,6 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 			ChunkZ=Voxel_LoadChunkList[0].Z
 			
 			if World.Chunk[ChunkX,ChunkZ].ObjectID=0				
-				Voxel_CreateBlocks(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
 				Voxel_UpdateChunkSunLight(World,ChunkX,ChunkZ,15)
 				Voxel_CreateChunk(Faceimages,World,ChunkX,ChunkZ)
 				World.Chunk[ChunkX,ChunkZ].Visible=1
@@ -442,7 +465,7 @@ function Voxel_CreateChunk(FaceImages ref as FaceimageData,World ref as WorldDat
 	Voxel_TempChunk=World.Chunk[ChunkX,ChunkZ]
 	for LocalX=0 to Voxel_ChunkSize-1
 		for LocalZ=0 to Voxel_ChunkSize-1
-			for LocalY=1 to Voxel_TempChunk.Height[LocalX,LocalZ]
+			for LocalY=0 to Voxel_TempChunk.Height[LocalX,LocalZ]
 				GlobalX=ChunkX*Voxel_ChunkSize+LocalX
 				GlobalZ=ChunkZ*Voxel_ChunkSize+LocalZ
 				Voxel_GenerateCubeFaces(Voxel_TempObject,Faceimages,World,GlobalX,LocalY,GlobalZ)
@@ -509,7 +532,7 @@ function Voxel_CreateBlocks(Chunk ref as Chunkdata,ChunkX,ChunkZ)
 			GrassLayer=GrassStart+Value1#/12.0
 			Chunk.Height[LocalX,LocalZ]=GrassLayer
 			
-			for LocalY=GrassLayer to 1 step -1	
+			for LocalY=GrassLayer to 0 step -1
 				if LocalY=GrassLayer
 					Chunk.BlockType[LocalX,LocalY,LocalZ]=1
 				elseif LocalY>=GrassLayer-DirtLayerHeight and LocalY<GrassLayer
@@ -526,9 +549,9 @@ function Voxel_CreateBlocks(Chunk ref as Chunkdata,ChunkX,ChunkZ)
 				
 				Chunk.SunLight[LocalX,LocalY,LocalZ]=Voxel_AmbientLight
 				Chunk.BlockLight[LocalX,LocalY,LocalZ]=Voxel_AmbientLight
-				if LocalY>Chunk.Height[LocalX,LocalZ]
-					Chunk.SunLight[LocalX,LocalY,LocalZ]=15
-				endif
+//~				if LocalY>Chunk.Height[LocalX,LocalZ]
+//~					Chunk.SunLight[LocalX,LocalY,LocalZ]=15
+//~				endif
 			next LocalY
 		next LocalZ
 	next LocalX
@@ -677,11 +700,24 @@ endfunction
 function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSunLight as integer)
 	local FrontierTemp as Int3Data
 	local Frontier as Int3Data[]
-	local TempChunk as Int2Data
-	local TempLocal as Int3Data
 
+	benchmark# = GetMilliseconds()
 	for LocalX=0 to Voxel_ChunkSize-1
 		for LocalZ=0 to Voxel_ChunkSize-1
+			HeightNorth=World.Chunk[ChunkX,ChunkZ].Height[LocalX,trunc(Core_Clamp(LocalZ+1,0,Voxel_ChunkSize-1))]
+			HeightSouth=World.Chunk[ChunkX,ChunkZ].Height[LocalX,trunc(Core_Clamp(LocalZ-1,0,Voxel_ChunkSize-1))]
+			HeightEast=World.Chunk[ChunkX,ChunkZ].Height[trunc(Core_Clamp(LocalX+1,0,Voxel_ChunkSize-1)),LocalZ]
+			HeightWest=World.Chunk[ChunkX,ChunkZ].Height[trunc(Core_Clamp(LocalX-1,0,Voxel_ChunkSize-1)),LocalZ]
+			HeightCurrent=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+			
+			LocalY=Core_Max(HeightNorth,Core_Max(HeightSouth,Core_Max(HeightEast,Core_Max(HeightWest,HeightCurrent))))+1
+			HeightY=Voxel_BlockMax.Y
+			
+			while HeightY>LocalY
+				World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,HeightY,LocalZ]=StartSunLight
+				dec HeightY
+			endwhile
+			
 			LocalY=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]+1
 			FrontierTemp.X=ChunkX*Voxel_ChunkSize+LocalX
 			FrontierTemp.Y=LocalY
@@ -689,10 +725,17 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 			Frontier.insert(FrontierTemp)
 			
 			World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,LocalY,LocalZ]=StartSunLight
+			
 		next LocalZ
 	next LocalX
-
+	
+	print("1: "+str(GetMilliseconds()-benchmark#))
+	benchmark# = GetMilliseconds()
+	print("Frontier length: "+str(Frontier.length))
+	iterations# = 0
+	
 	while Frontier.length>=0
+		inc iterations#
 		GlobalX=Frontier[0].X
 		GlobalY=Frontier[0].Y
 		GlobalZ=Frontier[0].Z
@@ -704,23 +747,37 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 			NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
 			if Voxel_IsGlobalTransparentBlock(World,NeighbourX,NeighbourY,NeighbourZ)=1
 				CurrentSunLight=Voxel_GetSunLight(World,GlobalX,GlobalY,GlobalZ)
-				Voxel_GetChunkCoordinates(NeighbourX,NeighbourZ,TempChunk)
-				Voxel_GetLocalCoordinates(NeighbourX,NeighbourY,NeighbourZ,TempLocal)
-				NeighbourSunLight=World.Chunk[TempChunk.X,TempChunk.Z].SunLight[TempLocal.X,TempLocal.Y,TempLocal.Z]
-				if CurrentSunLight>NeighbourSunLight+1
+				NeighbourChunkX=trunc(GlobalX/Voxel_ChunkSize)
+				NeighbourChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+				NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
+				NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
+				if NeighbourLocalX<0 or NeighbourLocalZ<0 then continue
+				
+				NeighbourSunLight=World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
+				if CurrentSunLight>NeighbourSunLight+1 and CurrentSunLight>Voxel_AmbientLight+1
 					FrontierTemp.X=NeighbourX
 					FrontierTemp.Y=NeighbourY
 					FrontierTemp.Z=NeighbourZ
-					Frontier.insert(FrontierTemp)
-					World.Chunk[TempChunk.X,TempChunk.Z].SunLight[TempLocal.X,TempLocal.Y,TempLocal.Z]=CurrentSunLight-1
 					
-					ChunkX=trunc((NeighbourX-1)/Voxel_ChunkSize)
-					ChunkZ=trunc((NeighbourZ-1)/Voxel_ChunkSize)
-					Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
+//~					if NeighbourLocalX>0 and NeighbourLocalZ>0 and NeighbourLocalX<Voxel_ChunkSize-1 and NeighbourLocalZ<Voxel_ChunkSize-1
+						Frontier.insert(FrontierTemp)
+//~					endif
+					
+					if NeighbourID=1 and CurrentSunLight=15
+						World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]=CurrentSunLight
+					else
+						World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]=CurrentSunLight-1
+					endif
+
+					Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)
 				endif
 			endif
 		next NeighbourID
 	endwhile
+	
+	print("2: "+str(GetMilliseconds()-benchmark#))
+	benchmark# = GetMilliseconds()
+	print("total iterations: "+str(iterations#))
 endfunction
 
 //~function Voxel_UpdateSunShadow(World ref as WorldData,StartX,StartY,StartZ)
@@ -781,7 +838,7 @@ endfunction
 
 function Voxel_UpdateHeightAndSunlight(Chunk ref as ChunkData,LocalX,LocalY,LocalZ,LightValue)
 	repeat
-		Chunk.SunLight[LocalX,LocalY,LocalZ]=LightValue
+//~		Chunk.SunLight[LocalX,LocalY,LocalZ]=LightValue
 		LocalY=LocalY-1
 		if LocalY<=1 then Exitfunction
 	until Voxel_IsLocalTransparentBlock(Chunk,LocalX,LocalY,LocalZ)=0
@@ -825,94 +882,97 @@ function Voxel_IsGlobalTransparentBlock(World ref as WorldData,GlobalX,GlobalY,G
 	endselect
 endfunction 0
 
-function Voxel_AddNeighbouringChunkstoList(TempChunk as Int2Data, TempLocal as Int3Data)
-	if TempLocal.X=Voxel_ChunkSize-1
-		if TempChunk.X+1<=Voxel_ChunkMax.X then Voxel_AddChunktoLoadList(TempChunk.X+1,TempChunk.Z)
+function Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
+	if LocalX=Voxel_ChunkSize-1
+		if ChunkX+1<=Voxel_ChunkMax.X then Voxel_AddChunktoLoadList(ChunkX+1,ChunkZ)
 	endif
-	if TempLocal.X=0
-		if TempChunk.X-1>=0 then Voxel_AddChunktoLoadList(TempChunk.X-1,TempChunk.Z)
+	if LocalX=0
+		if ChunkX-1>=0 then Voxel_AddChunktoLoadList(ChunkX-1,ChunkZ)
 	endif
-	if TempLocal.Z=Voxel_ChunkSize-1
-		if TempChunk.Z+1<=Voxel_ChunkMax.Z then Voxel_AddChunktoLoadList(TempChunk.X,TempChunk.Z+1)
+	if LocalZ=Voxel_ChunkSize-1
+		if ChunkZ+1<=Voxel_ChunkMax.Z then Voxel_AddChunktoLoadList(ChunkX,ChunkZ+1)
 	endif
-	if TempLocal.Z=0
-		if TempChunk.Z-1>=0 then Voxel_AddChunktoLoadList(TempChunk.X,TempChunk.Z-1)
+	if LocalZ=0
+		if ChunkZ-1>=0 then Voxel_AddChunktoLoadList(ChunkX,ChunkZ-1)
 	endif
 endfunction
 
 function Voxel_AddCubeToObject(World ref as WorldData,GlobalX,GlobalY,GlobalZ,BlockType)
-	local TempChunk as Int2Data
-	local TempLocal as Int3Data
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ,TempChunk)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ,TempLocal)
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
 	
-	if TempLocal.Y>World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-		Voxel_UpdateHeightAndSunlight(World.Chunk[TempChunk.X,TempChunk.Z],TempLocal.X,TempLocal.Y,TempLocal.Z,Voxel_AmbientLight)
-		World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]=TempLocal.Y
+	if GlobalY>World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+		Voxel_UpdateHeightAndSunlight(World.Chunk[ChunkX,ChunkZ],LocalX,GlobalY,LocalZ,Voxel_AmbientLight)
+		World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]=GlobalY
 	endif
 	
-	World.Chunk[TempChunk.X,TempChunk.Z].BlockType[TempLocal.X,TempLocal.Y,TempLocal.Z]=BlockType
+	World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]=BlockType
 //~	World.Terrain[X,Y,Z].BlockLight=Voxel_AmbientLight
 //~	World.Terrain[X,Y,Z].SunLight=Voxel_AmbientLight
 
 //~	Voxel_CreateBlockLight(World,X,Y,Z)
 	
-	Voxel_AddChunktoLoadList(TempChunk.X,TempChunk.Z)
-	Voxel_AddNeighbouringChunkstoList(TempChunk, TempLocal)
+	Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
+	Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
 endfunction
 
 function Voxel_RemoveCubeFromObject(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	local TempChunk as Int2Data
-	local TempLocal as Int3Data
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ,TempChunk)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ,TempLocal)
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
 	
-	if TempLocal.Y=World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-		Voxel_UpdateHeightAndSunlight(World.Chunk[TempChunk.X,TempChunk.Z],TempLocal.X,TempLocal.Y,TempLocal.Z,15)
-	elseif TempLocal.Y<World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-		TempHeight=World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-		Voxel_UpdateHeightAndSunlight(World.Chunk[TempChunk.X,TempChunk.Z],TempLocal.X,TempLocal.Y,TempLocal.Z,Voxel_AmbientLight)
-		World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]=TempHeight
+	if GlobalY=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+		Voxel_UpdateHeightAndSunlight(World.Chunk[ChunkX,ChunkZ],LocalX,GlobalY,LocalZ,15)
+	elseif GlobalY<World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+		TempHeight=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+		Voxel_UpdateHeightAndSunlight(World.Chunk[ChunkX,ChunkZ],LocalX,GlobalY,LocalZ,Voxel_AmbientLight)
+		World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]=TempHeight
 	endif
-	BlockType=World.Chunk[TempChunk.X,TempChunk.Z].BlockType[TempLocal.X,TempLocal.Y,TempLocal.Z]
-	World.Chunk[TempChunk.X,TempChunk.Z].BlockType[TempLocal.X,TempLocal.Y,TempLocal.Z]=0
+	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
+	World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]=0
 	
 //~	Voxel_UpdateBlockShadow(World,X,Y,Z)
 
-	Voxel_AddChunktoLoadList(TempChunk.X,TempChunk.Z)
-	Voxel_AddNeighbouringChunkstoList(TempChunk,TempLocal)
+	Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
+	Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
 endfunction BlockType
 
 function Voxel_RemoveCubeListFromObject(World ref as WorldData,CubeList as Int3Data[])
-	local TempChunk as Int2Data
 	local TempLocal as Int3Data
 	
 	for Index=0 to CubeList.length
 		GlobalX=CubeList[Index].X
 		GlobalY=CubeList[Index].Y
 		GlobalZ=CubeList[Index].Z
-		Voxel_GetChunkCoordinates(GlobalX,GlobalZ,TempChunk)
-		Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ,TempLocal)
+		ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+		ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+		LocalX=Mod(GlobalX,Voxel_ChunkSize)
+		LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
 		
-		if TempLocal.Y=World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-			Voxel_UpdateHeightAndSunlight(World.Chunk[TempChunk.X,TempChunk.Z],TempLocal.X,TempLocal.Y,TempLocal.Z,15)
-		elseif TempLocal.Y<World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-			TempHeight=World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]
-			Voxel_UpdateHeightAndSunlight(World.Chunk[TempChunk.X,TempChunk.Z],TempLocal.X,TempLocal.Y,TempLocal.Z,Voxel_AmbientLight)
-			World.Chunk[TempChunk.X,TempChunk.Z].Height[TempLocal.X,TempLocal.Z]=TempHeight
+		if GlobalY=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+			Voxel_UpdateHeightAndSunlight(World.Chunk[ChunkX,ChunkZ],LocalX,GlobalY,LocalZ,15)
+		elseif GlobalY<World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+			TempHeight=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
+			Voxel_UpdateHeightAndSunlight(World.Chunk[ChunkX,ChunkZ],LocalX,GlobalY,LocalZ,Voxel_AmbientLight)
+			World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]=TempHeight
 		endif
-		World.Chunk[TempChunk.X,TempChunk.Z].BlockType[TempLocal.X,TempLocal.Y,TempLocal.Z]=0
+		World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]=0
 	
-		Voxel_AddChunktoLoadList(TempChunk.X,TempChunk.Z)
-		Voxel_AddNeighbouringChunkstoList(TempChunk,TempLocal)
+		Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
+		Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
 	next Index
 endfunction
 
 function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as FaceimageData,World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	Voxel_GetChunkCoordinates(GlobalX,GlobalZ,Voxel_TempInt2Face)
-	Voxel_GetLocalCoordinates(GlobalX,GlobalY,GlobalZ,Voxel_TempInt3Face)
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Mod(GlobalX,Voxel_ChunkSize)
+	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
 	
-	BlockType=World.Chunk[Voxel_TempInt2Face.X,Voxel_TempInt2Face.Z].BlockType[Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z]
+	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
 	if BlockType>0
 		Index=BlockType-1
 		Voxel_TempSubimages[0]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].FrontID]
@@ -950,7 +1010,7 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			AO2=LightValue-AO2
 			AO3=LightValue-AO3
 			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[0],Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z,FaceFront,AO0,AO1,AO2,AO3,Flipped)
+			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[0],LocalX,GlobalY,LocalZ,FaceFront,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if Voxel_GetBlockType(World,GlobalX,GlobalY,GlobalZ-1)=0
 			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ-1)=0)
@@ -978,7 +1038,7 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			AO2=LightValue-AO2
 			AO3=LightValue-AO3
 			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[1],Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z,FaceBack,AO0,AO1,AO2,AO3,Flipped)
+			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[1],LocalX,GlobalY,LocalZ,FaceBack,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ)=0
 			side1=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ)=0)
@@ -1006,7 +1066,7 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			AO2=LightValue-AO2
 			AO3=LightValue-AO3
 			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[2],Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z,FaceRight,AO0,AO1,AO2,AO3,Flipped)
+			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[2],LocalX,GlobalY,LocalZ,FaceRight,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ)=0
 			side1=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ)=0)
@@ -1034,7 +1094,7 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			AO2=LightValue-AO2
 			AO3=LightValue-AO3
 			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[3],Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z,FaceLeft,AO0,AO1,AO2,AO3,Flipped)
+			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[3],LocalX,GlobalY,LocalZ,FaceLeft,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ)=0
 			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ+1)=0)
@@ -1055,14 +1115,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			AO3=Voxel_GetVertexAO(side1,side2,corner)
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
-//~			
+			
 			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,GlobalY+1,GlobalZ),Voxel_GetSunLight(World,GlobalX,GlobalY+1,GlobalZ))/15.0*255
 			AO0=LightValue-AO0
 			AO1=LightValue-AO1
 			AO2=LightValue-AO2
 			AO3=LightValue-AO3
 			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[4],Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z,FaceUp,AO0,AO1,AO2,AO3,Flipped)
+			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[4],LocalX,GlobalY,LocalZ,FaceUp,AO0,AO1,AO2,AO3,Flipped)
 		endif
 		if Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ)=0
 			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ+1)=0)
@@ -1083,14 +1143,14 @@ function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as Face
 			AO3=Voxel_GetVertexAO(side1,side2,corner)
 			
 			if AO0+AO2>AO1+AO3 then Flipped=1
-//~			
+			
 			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,GlobalY-1,GlobalZ),Voxel_GetSunLight(World,GlobalX,GlobalY-1,GlobalZ))/15.0*255
 			AO0=LightValue-AO0
 			AO1=LightValue-AO1
 			AO2=LightValue-AO2
 			AO3=LightValue-AO3
 			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[5],Voxel_TempInt3Face.X,Voxel_TempInt3Face.Y,Voxel_TempInt3Face.Z,FaceDown,AO0,AO1,AO2,AO3,Flipped)
+			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[5],LocalX,GlobalY,LocalZ,FaceDown,AO0,AO1,AO2,AO3,Flipped)
 		endif
 	endif
 endfunction
