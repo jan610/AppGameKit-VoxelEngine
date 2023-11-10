@@ -13,7 +13,7 @@ SetErrorMode(2)
 
 // set window properties
 SetWindowTitle( "VoxelEngine" )
-SetWindowSize( 1024, 768, 0 )
+SetWindowSize( 1280, 720, 0 )
 SetWindowAllowResize( 1 ) // allow the user to resize the window
 
 // set display properties
@@ -25,25 +25,20 @@ UseNewDefaultFonts( 1 )
 SetPrintSize(16)
 
 SetAntialiasMode(1)
-SetCameraRange(1,0.25,100)
+SetCameraRange(1,0.25,150)
 SetFogMode(1)
-SetFogRange(80,99)
+SetFogRange(128,150)
 SetSkyBoxVisible(1)
 SetGenerateMipmaps(0)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
 
-//~Create3DPhysicsWorld(5)
 
-//~local Subimages as SubimageData[]
-//~Voxel_ReadSubimages("terrain subimages.txt", Subimages)
-
-global Faceimages as FaceimageData
-Voxel_ReadFaceImages(TERRAIN_JSON, Faceimages)
+Voxel_LoadBlockAttributes(TERRAIN_JSON)
 
 World as WorldData
 
-Voxel_Init(World,16,512,64,512,TERRAIN_IMG,"TestWorld")
+Voxel_Init(World,16,256,64,256,TERRAIN_IMG,"TestWorld")
 
 SetupNoise (1,1,2,0.5)
 
@@ -57,7 +52,7 @@ TemplateCubeID=CreateObjectBox(1,1,1)
 SpawnX#=Voxel_BlockMax.X/2
 SpawnY#=Voxel_BlockMax.Y
 SpawnZ#=Voxel_BlockMax.Z/2
-SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
+Voxel_SetSpawn(SpawnX#,SpawnY#,SpawnZ#)
 
 PreviewImageID=LoadImage(PREVIEW_IMG)
 SetImageMinFilter(PreviewImageID,1)
@@ -93,10 +88,11 @@ do
 //~	endif
 
 	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
-	if ChunkUpdateSwitch=1 then Voxel_UpdateChunks(Faceimages,World,NewCameraX#,NewCameraZ#,3)
+	if ChunkUpdateSwitch=1 then Voxel_UpdateChunks(World,NewCameraX#,NewCameraZ#,4)
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
-	BlockType=Core_Clamp(BlockType,1,Faceimages.FaceimageIndices.length)
+	BlockType=Core_Clamp(BlockType,1,Voxel_Blocks.Attributes.length)
+	BlockName$=Voxel_Blocks.Attributes[BlockType-1].Name$
 
 	Pointer2DX#=GetPointerX()
 	Pointer2DY#=GetPointerY()
@@ -161,8 +157,8 @@ do
 		if HitObjectID>0
 			ExplosionRadius=2
 			
-			CubeList as Int3Data[]
-			TempCubePos as Int3Data
+			CubeList as Core_Int3Data[]
+			TempCubePos as Core_Int3Data
 			for GlobalX=HitInsideX-ExplosionRadius to HitInsideX+ExplosionRadius
 				for GlobalY=HitInsideY-ExplosionRadius to HitInsideY+ExplosionRadius
 					for GlobalZ=HitInsideZ-ExplosionRadius to HitInsideZ+ExplosionRadius
@@ -190,29 +186,15 @@ do
 	if GetRawKeyPressed(KEY_F4)
 		local filest$ as string
 		filest$ = TERRAIN_JSON
-		Voxel_SaveFaceImages(filest$, FaceImages)
+		Voxel_SaveBlockAttributes(filest$)
 		Message("Textures / subimages saved in " + filest$)
 	endif
 	
 	if GetRawKeyPressed(KEY_F5)
 		local filert$ as string
 		filert$ = TERRAIN_JSON
-		Voxel_ReadFaceImages(filert$, FaceImages)
+		Voxel_LoadBlockAttributes(filert$)
 		Message("Textures / subimages loaded from " + filert$)
-	endif
-
-	if GetRawKeyPressed(KEY_F6)
- 		local filesw$ as string
-	 	filesw$ = WORLD_JSON
-	 	Voxel_SaveWorld(filesw$, World)
-	 	Message("World saved in " + filesw$)
-	endif
-	
-	if GetRawKeyPressed(KEY_F7)
- 		local filerw$ as string
-	 	filerw$ = WORLD_JSON
-	 	Voxel_ReadWorld(filerw$, World)
-	 	Message("World loaded from " + filerw$)
 	endif
 
 	// TODO A complete Logging by pressing any key
@@ -224,14 +206,19 @@ do
 	print("Chunk; "+str(ChunkX)+","+str(ChunkZ))
 	print("Object ID: "+str(HitObjectID))
 	print("Block Type: "+str(BlockType))
+	print("Block Name: "+BlockName$)
 	print("Inside Block Light: "+str(InsideBlockLight))
 //~	print("OutsideBlock Light: "+str(OutsideBlockLight))
 //~	print("Outside Sun Light: "+str(OutsideSunLight))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
 	print("Chunks in List: "+str(Voxel_LoadChunkList.length))
-	Print("Mesh Update Time: "+str(Voxel_DebugMeshBuildingTime#))
-	Print("Itteration Time: "+str(Voxel_DebugTime#))
-	print("Save Time#: "+str(Voxel_DebugSaveTime#))
+	Print("Chunk Time: "+str(Voxel_DebugChunkTime#))
+	Print("Mesh Time: "+str(Voxel_DebugMeshTime#))
+	print("Noise Time: "+str(Voxel_DebugNoiseTime#))
+	print("Save Time: "+str(Voxel_DebugSaveTime#))
+	print("Load Time: "+str(Voxel_DebugLoadTime#))
+	print("Sun Time: "+str(Voxel_DebugSunTime#))
+	print("Frontier Itterations: "+str(Voxel_DebugIterations))	
 	
     Sync()
 loop

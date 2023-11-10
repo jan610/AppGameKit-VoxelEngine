@@ -1,4 +1,11 @@
 // File: core.agc
+type Core_Vec4Data
+	X# as float
+	Y# as float
+	Z# as float
+	W# as float
+endtype
+
 type Core_Vec3Data
     X# as float
     Y# as float
@@ -26,6 +33,11 @@ endtype
 type Core_Int2Data
     X as integer
     Y as integer
+endtype
+
+type Core_Int2XZData
+	X as integer
+	Z as integer
 endtype
 
 function Core_Vector3DTo2D(Vector3D as Core_Vec3Data)
@@ -120,6 +132,11 @@ function Core_WrapAngle( angle# as float)
         angle#=360.0 + fmod(angle#,-360.0)
     endif
 endfunction angle#
+
+function Core_WrapInteger(Value, Range)
+    Result=Mod(Value, Range)
+    if Result<0 then Result=Result+Range
+endfunction Result
  
 function Core_ManhattanDistance2D(StartX,StartY,EndX,EndY)
     DistX=abs(EndX-StartX)
@@ -140,15 +157,15 @@ function Core_Distance3D(StartX#,StartY#,StartZ#,EndX#,EndY#,EndZ#)
     Dist#=sqrt(DistX#*DistX#+DistY#*DistY#+DistZ#*DistZ#)
 endfunction Dist#
  
-function Core_Lerp(Time#,Start#,End#)
-endfunction Start#+Time#*(End#-Start#)
+function Core_Lerp(Value#,Start#,End#)
+endfunction Start#+Value#*(End#-Start#)
  
 function Core_InverseLerp(Value#,Start#,End#)
 endfunction (Value#-Start#)/(End#-Start#)
  
 function Core_Map(Value#,InMin#,InMax#,OutMin#,OutMax#)
-    Time#=Core_InverseLerp(Value#,InMin#,InMax#)
-    Result#=Core_Lerp(Time#,OutMin#,OutMax#)
+    Value#=Core_InverseLerp(Value#,InMin#,InMax#)
+    Result#=Core_Lerp(Value#,OutMin#,OutMax#)
 endfunction Result#
  
 function Core_Clamp(Value#,Min#,Max#)

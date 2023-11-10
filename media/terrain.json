@@ -1543,16 +1543,28 @@
             "height": 0
         }
     ], 
-    "faceimageindices": [
+    "attributes": [
         {
+			"name$": "Grass",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 3, 
             "backid": 3, 
             "upid": 0, 
             "downid": 2, 
             "leftid": 3, 
-            "rightid": 3
+            "rightid": 3,
+			"frontoffset#": 0.5,
+			"backoffset#": 0.5,
+			"upoffset#": 0.5,
+			"downoffset#": 0.5,
+			"feltoffset#": 0.5,
+			"rightoffset#": 0.5
         }, 
         {
+			"name$": "Stone",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 1, 
             "backid": 1, 
             "upid": 1, 
@@ -1561,6 +1573,9 @@
             "rightid": 1
         }, 
         {
+			"name$": "Dirt",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 2, 
             "backid": 2, 
             "upid": 2, 
@@ -1569,6 +1584,9 @@
             "rightid": 2
         }, 
         {
+			"name$": "Iron",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 33, 
             "backid": 33, 
             "upid": 33, 
@@ -1576,7 +1594,76 @@
             "leftid": 33, 
             "rightid": 33
         }, 
+		{
+			"name$": "Quarz",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 32, 
+            "backid": 32, 
+            "upid": 32, 
+            "downid": 32, 
+            "leftid": 32, 
+            "rightid": 32
+        }, 
+		{
+			"name$": "Kole",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 34, 
+            "backid": 34, 
+            "upid": 34, 
+            "downid": 34, 
+            "leftid": 34, 
+            "rightid": 34
+        }, 
+		{
+			"name$": "Diamond",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 50, 
+            "backid": 50, 
+            "upid": 50, 
+            "downid": 50, 
+            "leftid": 50, 
+            "rightid": 50
+        }, 
+		{
+			"name$": "Kopper",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 51, 
+            "backid": 51, 
+            "upid": 51, 
+            "downid": 51, 
+            "leftid": 51, 
+            "rightid": 51
+        },
+		{
+			"name$": "Lapis",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 160, 
+            "backid": 160, 
+            "upid": 160, 
+            "downid": 160, 
+            "leftid": 160, 
+            "rightid": 160
+        },
+		{
+			"name$": "Emerald",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 171, 
+            "backid": 171, 
+            "upid": 171, 
+            "downid": 171, 
+            "leftid": 171, 
+            "rightid": 171
+        },
         {
+			"name$": "Wood Log",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 20, 
             "backid": 20, 
             "upid": 21, 
@@ -1585,14 +1672,20 @@
             "rightid": 20
         }, 
         {
+			"name$": "Workbench",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 59, 
-            "backid": 60, 
+            "backid": 59, 
             "upid": 43, 
             "downid": 4, 
             "leftid": 60, 
-            "rightid": 59
+            "rightid": 60
         }, 
         {
+			"name$": "Wood Plank",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 4, 
             "backid": 4, 
             "upid": 4, 
@@ -1601,6 +1694,9 @@
             "rightid": 4
         }, 
         {
+			"name$": "Stone Pillar",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 5, 
             "backid": 5, 
             "upid": 6, 
@@ -1609,6 +1705,9 @@
             "rightid": 5
         }, 
         {
+			"name$": "Brick",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 7, 
             "backid": 7, 
             "upid": 7, 
@@ -1617,6 +1716,9 @@
             "rightid": 7
         }, 
         {
+			"name$": "Tnt",
+			"solid": 1,
+			"opaque": 1,
             "frontid": 8, 
             "backid": 8, 
             "upid": 9, 
@@ -1625,6 +1727,10 @@
             "rightid": 8
         }, 
         {
+			"name$": "Jack o'Lantern",
+			"light": 15,
+			"solid": 1,
+			"opaque": 1,
             "frontid": 120, 
             "backid": 118, 
             "upid": 102, 
@@ -1633,6 +1739,98 @@
             "rightid": 118
         },
         {
+			"name$": "Melon",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 136, 
+            "backid": 136, 
+            "upid": 137, 
+            "downid": 137, 
+            "leftid": 136, 
+            "rightid": 136
+        },
+        {
+			"name$": "Cauldron",
+			"solid": 1,
+			"opaque": 0,
+            "frontid": 154, 
+            "backid": 154, 
+            "upid": 138, 
+            "downid": 139, 
+            "leftid": 154, 
+            "rightid": 154
+        },
+		{
+			"name$": "Book shelf",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 35, 
+            "backid": 35, 
+            "upid": 4, 
+            "downid": 4, 
+            "leftid": 35, 
+            "rightid": 35
+        }, 
+		{
+			"name$": "Snow",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 68, 
+            "backid": 68, 
+            "upid": 66, 
+            "downid": 3, 
+            "leftid": 68, 
+            "rightid": 68
+        }, 
+		{
+			"name$": "Sand",
+			"solid": 1,
+			"opaque": 1,
+            "frontid": 176, 
+            "backid": 176, 
+            "upid": 176, 
+            "downid": 176, 
+            "leftid": 176, 
+            "rightid": 176
+        }, 
+		{
+			"name$": "Leaves",
+			"solid": 1,
+			"opaque": 0,
+			"joinface": 0,
+            "frontid": 132, 
+            "backid": 132, 
+            "upid": 132, 
+            "downid": 132, 
+            "leftid": 132, 
+            "rightid": 132
+        }, 
+		{
+			"name$": "Glass",
+			"solid": 1,
+			"opaque": 0,
+			"joinface": 1,
+            "frontid": 49, 
+            "backid": 49, 
+            "upid": 49, 
+            "downid": 49, 
+            "leftid": 49, 
+            "rightid": 49
+        }, 
+		{
+			"name$": "Water",
+			"solid": 0,
+			"opaque": 0,
+			"joinface": 1,
+            "frontid": 205, 
+            "backid": 205, 
+            "upid": 205, 
+            "downid": 205, 
+            "leftid": 205, 
+            "rightid": 205
+        }, 
+        {
+			"solid": 0,
             "frontid": 255, 
             "backid": 255, 
             "upid": 255, 

@@ -1,57 +1,6 @@
 //~#import_plugin OpenSimplexNoise as Noise
 //~#include "threadnoise.agc"
 
-// Data Types able to represent any AGK mesh
-type Vec4Data
-	X#
-	Y#
-	Z#
-	W#
-endtype
-
-type Vec3Data
-	X#
-	Y#
-	Z#
-endtype
-
-type Vec2Data
-	X#
-	Y#
-endtype
-
-type Int3Data
-	X as integer
-	Y as integer
-	Z as integer
-endtype
-
-type Int2Data
-	X as integer
-	Z as integer
-endtype
-
-type RGBAData
-	Red
-	Green
-	Blue
-	Alpha
-endtype
-
-type VertexData
-	Pos as Vec3Data
-	UV as Vec2Data
-	Color as RGBAData
-	Normal as Vec3Data
-	Tangent as Vec3Data
-	Binormal as Vec3Data
-endtype
-
-type ObjectData
-	Vertex as VertexData[]
-	Index as integer[]
-endtype
-
 #constant FaceFront	1
 #constant FaceBack	2
 #constant FaceLeft	3
@@ -59,25 +8,52 @@ endtype
 #constant FaceUp		5
 #constant FaceDown	6
 
+// Data Types able to represent any AGK mesh
+type VertexData
+	Pos as Core_Vec3Data
+	UV as Core_Vec2Data
+	Color as Core_ColorData
+	Normal as Core_Vec3Data
+	Tangent as Core_Vec3Data
+	Binormal as Core_Vec3Data
+endtype
+
+type MeshData
+	Vertex as VertexData[]
+	Index as integer[]
+endtype
+
 type SubimageData
+	Path as string
 	X as integer
 	Y as integer
 	Width as integer
 	Height as integer
 endtype
-
-type FaceIndexData
+	
+type BlockAttributeData
+	Name$ as string
+	Solid as integer
+	Light as integer
+	Opaque as integer
+	JoinFace as integer
 	FrontID as integer
 	BackID as integer
 	UpID as integer
 	DownID as integer
 	LeftID as integer
 	RightID as integer
+	FrontOffset# as float
+	BackOffset# as float
+	UpOffset# as float
+	DownOffset# as float
+	LeftOffset# as float
+	RightOffset# as float
 endtype
 
-type FaceimageData
+type BlockData
 	Subimages as SubimageData[]
-	FaceimageIndices as FaceIndexData[]
+	Attributes as BlockAttributeData[]
 endtype
 
 type WorldData
@@ -85,17 +61,27 @@ type WorldData
 endtype
 
 type ChunkData
-	ObjectID as integer
-	Visible as integer
+	SolidObjectID as integer
+	LooseObjectID as integer
+	Visited as integer
 	Height as integer[-1,-1]
 	BlockType as integer[-1,-1,-1]
 	BlockLight as integer[-1,-1,-1]
 	SunLight as integer[-1,-1,-1]
+	BlockFrontier as FrontierData[]
+	SunFrontier as FrontierData[]
 endtype
 
 type BorderData
-	Min as Int2Data
-	Max as Int2Data
+	Min as Core_Int2XZData
+	Max as Core_Int2XZData
+endtype
+
+type FrontierData
+	Dir as integer
+	X as integer
+	Y as integer
+	Z as integer
 endtype
 
 type ChunkListData
@@ -111,34 +97,49 @@ type SpreadLightData
 	Light as Integer
 endtype
 
-global Voxel_Neighbors as Int3Data[5]
+global Voxel_Neighbors as Core_Int3Data[5]
 global Voxel_LoadChunkList as ChunkListData[]
 global Voxel_UnloadChunkList as ChunkListData[]
 global Voxel_TempSubimages as SubimageData[5]
+global Voxel_TempOffset as float[5]
 global Voxel_SpreadLight as SpreadLightData[]
 global Voxel_TempChunkList as ChunkListData
 global Voxel_TempChunk as ChunkData
-global Voxel_TempObject as ObjectData
-global Voxel_TempInt3 as Int3Data
+global Voxel_TempSolidMesh as MeshData
+global Voxel_TempLooseMesh as MeshData
+global Voxel_TempInt3 as Core_Int3Data
 global Voxel_ChunkView as BorderData
-global Voxel_ChunkMax as Int2Data
-global Voxel_BlockMax as Int3Data
+global Voxel_ChunkMax as Core_Int2XZData
+global Voxel_BlockMax as Core_Int3Data
+global Voxel_TempVertex as VertexData[3]
+global Voxel_Blocks as BlockData
 
 global Voxel_AmbientLight as integer
 global Voxel_ChunkSize as integer
 global Voxel_DiffuseImageID as integer
 global Voxel_NormalImageID as integer
-global Voxel_ShaderID as integer
+global Voxel_OpaqueShaderID as integer
+global Voxel_WaterShaderID as integer
 global Voxel_TempID as integer
 global Voxel_UpdateTimer# as float
 global Voxel_CameraChunkOldX as integer
 global Voxel_CameraChunkOldZ as integer
 global Voxel_WorldName$ as string
+global Voxel_Frecueny2D# as float
+global Voxel_Frecueny3DCave# as float
+global Voxel_Frecueny3DIron# as float
+global Voxel_GrassHeight as integer
+global Voxel_DirtHeight as integer
+global Voxel_SeaHeight as integer
 		
-global Voxel_DebugMeshBuildingTime# as float
+global Voxel_DebugMeshTime# as float
+global Voxel_DebugChunkTime# as float
 global Voxel_DebugSaveTime# as float
+global Voxel_DebugLoadTime# as float
 global Voxel_DebugTime# as float
-global Voxel_DebugCounter as integer
+global Voxel_DebugNoiseTime# as float
+global Voxel_DebugSunTime# as float
+global Voxel_DebugIterations as integer
 
 // Functions
 
@@ -147,35 +148,45 @@ function Voxel_Init(World ref as WorldData,ChunkSize,SizeX,SizeY,SizeZ,File$,Wor
 	Voxel_DiffuseImageID=LoadImage(File$)
 //~	Voxel_NormalImageID=LoadImage(StringInsertAtDelemiter(File$,"_n.","."))
 	
-	Voxel_ShaderID=LoadShader("shader/vertex.vs","shader/fragment.ps")
+	Voxel_OpaqueShaderID=LoadShader("shader/opaque.vs","shader/opaque.ps")
+	Voxel_WaterShaderID=LoadShader("shader/water.vs","shader/water.ps")
+	SetShaderConstantByName(Voxel_WaterShaderID,"waveFrequency",2.0,2.2,0,0)
+	SetShaderConstantByName(Voxel_WaterShaderID,"waveAmplitude",0.05,0,0,0)
+	SetShaderConstantByName(Voxel_WaterShaderID,"waveOffset",0.0,0.0,0,0)
 	
 	Voxel_WorldName$=WorldName$
-	Voxel_ChunkSize=ChunkSize
-	Voxel_ChunkMax.X=trunc((SizeX+1)/Voxel_ChunkSize)-1
-	Voxel_ChunkMax.Z=trunc((SizeZ+1)/Voxel_ChunkSize)-1
 	Voxel_AmbientLight=2
+	Voxel_ChunkSize=ChunkSize
+	Voxel_ChunkMax.X=trunc(SizeX/Voxel_ChunkSize)
+	Voxel_ChunkMax.Z=trunc(SizeZ/Voxel_ChunkSize)
 	
 	Voxel_BlockMax.X=SizeX
 	Voxel_BlockMax.Y=SizeY
 	Voxel_BlockMax.Z=SizeZ
 	
+	Voxel_Frecueny2D#=32.0
+	Voxel_Frecueny3DCave#=22.0
+	Voxel_Frecueny3DIron#=2.0
+	Voxel_GrassHeight=SizeY*0.5
+	Voxel_SeaHeight=Voxel_GrassHeight-2
+	
 	World.Chunk.length=Voxel_ChunkMax.X
 	for ChunkX=0 to Voxel_ChunkMax.X
 		World.Chunk[ChunkX].length=Voxel_ChunkMax.Z
 		for ChunkZ=0 to Voxel_ChunkMax.Z
-			World.Chunk[ChunkX,ChunkZ].Height.length=Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkZ].BlockType.length=Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkZ].BlockLight.length=Voxel_ChunkSize
-			World.Chunk[ChunkX,ChunkZ].SunLight.length=Voxel_ChunkSize
+			World.Chunk[ChunkX,ChunkZ].Height.length=Voxel_ChunkSize-1
+			World.Chunk[ChunkX,ChunkZ].BlockType.length=Voxel_ChunkSize-1
+			World.Chunk[ChunkX,ChunkZ].BlockLight.length=Voxel_ChunkSize-1
+			World.Chunk[ChunkX,ChunkZ].SunLight.length=Voxel_ChunkSize-1
 			for X=0 to Voxel_ChunkSize-1
-				World.Chunk[ChunkX,ChunkZ].Height[X].length=Voxel_ChunkSize
+				World.Chunk[ChunkX,ChunkZ].Height[X].length=Voxel_ChunkSize-1
 				World.Chunk[ChunkX,ChunkZ].BlockType[X].length=SizeY
 				World.Chunk[ChunkX,ChunkZ].BlockLight[X].length=SizeY
 				World.Chunk[ChunkX,ChunkZ].SunLight[X].length=SizeY
 				for Y=0 to SizeY
-					World.Chunk[ChunkX,ChunkZ].BlockType[X,Y].length=Voxel_ChunkSize
-					World.Chunk[ChunkX,ChunkZ].BlockLight[X,Y].length=Voxel_ChunkSize
-					World.Chunk[ChunkX,ChunkZ].SunLight[X,Y].length=Voxel_ChunkSize
+					World.Chunk[ChunkX,ChunkZ].BlockType[X,Y].length=Voxel_ChunkSize-1
+					World.Chunk[ChunkX,ChunkZ].BlockLight[X,Y].length=Voxel_ChunkSize-1
+					World.Chunk[ChunkX,ChunkZ].SunLight[X,Y].length=Voxel_ChunkSize-1
 				next Y
 			next X
 		next ChunkZ
@@ -185,90 +196,155 @@ function Voxel_Init(World ref as WorldData,ChunkSize,SizeX,SizeY,SizeZ,File$,Wor
 	Voxel_Neighbors[0].y=1
 	Voxel_Neighbors[0].z=0
 	
-	Voxel_Neighbors[1].x=0
-	Voxel_Neighbors[1].y=-1
+	Voxel_Neighbors[1].x=1
+	Voxel_Neighbors[1].y=0
 	Voxel_Neighbors[1].z=0
 	
-	Voxel_Neighbors[2].x=1
+	Voxel_Neighbors[2].x=0
 	Voxel_Neighbors[2].y=0
-	Voxel_Neighbors[2].z=0
+	Voxel_Neighbors[2].z=1
 	
-	Voxel_Neighbors[3].x=-1
+	Voxel_Neighbors[3].x=0
 	Voxel_Neighbors[3].y=0
-	Voxel_Neighbors[3].z=0
+	Voxel_Neighbors[3].z=-1
 	
-	Voxel_Neighbors[4].x=0
+	Voxel_Neighbors[4].x=-1
 	Voxel_Neighbors[4].y=0
-	Voxel_Neighbors[4].z=1
+	Voxel_Neighbors[4].z=0
 	
 	Voxel_Neighbors[5].x=0
-	Voxel_Neighbors[5].y=0
-	Voxel_Neighbors[5].z=-1
+	Voxel_Neighbors[5].y=-1
+	Voxel_Neighbors[5].z=0
 endfunction
 
-function Voxel_ReadFaceImages(FaceImagesFile$, Faceimages ref as FaceimageData)
+function Voxel_SetSpawn(SpawnX#,SpawnY#,SpawnZ#)
+	SetCameraPosition(1,SpawnX#,SpawnY#,SpawnZ#)
+	Voxel_CameraChunkX=trunc(SpawnX#)/Voxel_ChunkSize
+	Voxel_CameraChunkZ=trunc(SpawnZ#)/Voxel_ChunkSize
+//~	Voxel_CameraChunkOldX=Voxel_CameraChunkX
+//~	Voxel_CameraChunkOldZ=Voxel_CameraChunkZ
+endfunction
+
+function Voxel_LoadBlockAttributes(FaceImagesFile$)
 	local string$ as string
 	string$ = Voxel_JSON_Load(FaceImagesFile$)
-	Faceimages.fromJSON(string$)
+	Voxel_Blocks.fromJSON(string$)
 endfunction
 
-function Voxel_SaveFaceImages(FaceIMagesFile$, Faceimages as FaceimageData)
+function Voxel_SaveBlockAttributes(FaceIMagesFile$)
 	local string$ as string
-	string$ = Faceimages.toJSON()
+	string$ = Voxel_Blocks.toJSON()
 	Voxel_JSON_Save(string$ , FaceIMagesFile$)
 endfunction
 
-function Voxel_ReadWorld(WorldFile$, World ref as WorldData)
-	local string$ as string
-	string$ = Voxel_JSON_Load(WorldFile$)
-	World.fromJSON(string$)
-endfunction
+//~function Voxel_SaveChunk(Chunk ref as ChunkData,ChunkX,ChunkZ)
+//~	StartTime#=Timer()
+//~	local RunLength as integer
+//~	local OldBlockType as integer
+//~	OpenToWrite(1,Voxel_WorldName$+"/Chunk_"+str(ChunkX)+"_"+str(ChunkZ)+".bin",0) 
+//~	for LocalX=0 to Voxel_ChunkSize-1
+//~        for LocalZ=0 to Voxel_ChunkSize-1
+//~            RunLength=1
+//~            Height=Chunk.Height[LocalX,LocalZ]
+//~            WriteByte(1,Height)
+//~            OldBlockType=Chunk.BlockType[LocalX,1,LocalZ]
+//~            for LocalY=2 to Height
+//~            		BlockType=Chunk.BlockType[LocalX,LocalY,LocalZ]
+//~                if BlockType<>OldBlockType
+//~                    WriteByte(1,RunLength)
+//~                    WriteByte(1,OldBlockType)
+//~                    OldBlockType=BlockType
+//~                    RunLength=0
+//~                endif
+//~                inc RunLength
+//~            next LocalY
+//~            WriteByte(1,RunLength)
+//~            WriteByte(1,Chunk.BlockType[LocalX,LocalY,LocalZ])
+//~        next LocalZ
+//~	next LocalX
+//~    CloseFile(1)
+//~    Voxel_DebugSaveTime#=Timer()-StartTime#
+//~endfunction
 
-function Voxel_SaveWorld(WorldFile$, World as WorldData)
-	local string$ as string	
-	string$ = World.toJSON()
-	Voxel_JSON_Save(string$ , WorldFile$)
-endfunction
+//~function Voxel_LoadChunk(Chunk ref as ChunkData,ChunkX,ChunkZ)
+//~	StartTime#=Timer()
+//~	local RunLength as integer
+//~	local OldBlockType as integer
+//~	OpenToRead(1,Voxel_WorldName$+"/Chunk_"+str(ChunkX)+"_"+str(ChunkZ)+".bin") 
+//~	for LocalX=0 to Voxel_ChunkSize-1
+//~        for LocalZ=0 to Voxel_ChunkSize-1
+//~            Height=ReadByte(1)
+//~            Chunk.Height[LocalX,LocalZ]=Height
+//~            LocalY=1
+//~            repeat
+//~	    		RunLength=ReadByte(1)
+//~	    		BlockType=ReadByte(1)
+//~	    		repeat
+//~	    			Chunk.BlockType[LocalX,LocalY,LocalZ]=BlockType
+//~	    			inc LocalY
+//~	    		until LocalY>=RunLength or LocalY>=Height
+//~    		until LocalY>=Height
+//~        next LocalZ
+//~	next LocalX
+//~    CloseFile(1)
+//~    Voxel_DebugLoadTime#=Timer()-StartTime#
+//~endfunction
 
 function Voxel_SaveChunk(Chunk ref as ChunkData,ChunkX,ChunkZ)
 	StartTime#=Timer()
+	
 	local RunLength as integer
 	local OldBlockType as integer
 	OpenToWrite(1,Voxel_WorldName$+"/Chunk_"+str(ChunkX)+"_"+str(ChunkZ)+".bin",0) 
 	for LocalX=0 to Voxel_ChunkSize-1
         for LocalZ=0 to Voxel_ChunkSize-1
-            RunLength=0
             Height=Chunk.Height[LocalX,LocalZ]
             WriteByte(1,Height)
-            for LocalY=0 to Height
-            		BlockType=Chunk.BlockType[LocalX,LocalY,LocalZ]
-                inc RunLength
-                if BlockType<>OldBlockType
-                    OldBlockType=BlockType
-                    WriteByte(1,RunLength)
-                    WriteByte(1,BlockType)
-                    RunLength=0
-                endif
+            for LocalY=1 to Height
+                 WriteByte(1,Chunk.BlockType[LocalX,LocalY,LocalZ])
+//~                 WriteByte(1,Chunk.BlockLight[LocalX,LocalY,LocalZ])
+//~                 WriteByte(1,Chunk.SunLight[LocalX,LocalY,LocalZ])
             next LocalY
-            WriteByte(1,RunLength)
-            WriteByte(1,Chunk.BlockType[LocalX,LocalY,LocalZ])
         next LocalZ
 	next LocalX
     CloseFile(1)
+    
     Voxel_DebugSaveTime#=Timer()-StartTime#
 endfunction
 
+function Voxel_LoadChunk(Chunk ref as ChunkData,ChunkX,ChunkZ)
+	StartTime#=Timer()
+	
+	local RunLength as integer
+	local OldBlockType as integer
+	OpenToRead(1,Voxel_WorldName$+"/Chunk_"+str(ChunkX)+"_"+str(ChunkZ)+".bin") 
+	for LocalX=0 to Voxel_ChunkSize-1
+        for LocalZ=0 to Voxel_ChunkSize-1
+            Height=ReadByte(1)
+            for LocalY=1 to Height
+				Chunk.BlockType[LocalX,LocalY,LocalZ]=ReadByte(1)
+//~				Chunk.BlockLight[LocalX,LocalY,LocalZ]=ReadByte(1)
+//~				Chunk.SunLight[LocalX,LocalY,LocalZ]=ReadByte(1)
+            next LocalY
+            Chunk.Height[LocalX,LocalZ]=Height
+        next LocalZ
+	next LocalX
+    CloseFile(1)
+    
+    Voxel_DebugLoadTime#=Timer()-StartTime#
+endfunction
+
 function Voxel_ChunkFileExists(ChunkX,ChunkZ)
-	local Result as integer
-	Result = GetFileExists(Voxel_WorldName$+"/Chunk_"+str(ChunkX)+"_"+str(ChunkZ))
+	Result=GetFileExists(Voxel_WorldName$+"/Chunk_"+str(ChunkX)+"_"+str(ChunkZ)+".bin")
 endfunction Result
 
 function Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
-	if ChunkX<Voxel_ChunkView.Min.X or ChunkX>Voxel_ChunkView.Max.X or ChunkZ<Voxel_ChunkView.Min.Z or ChunkZ>Voxel_ChunkView.Max.Z then exitfunction
-	Voxel_TempChunkList.X=ChunkX
-	Voxel_TempChunkList.Z=ChunkZ
-	Voxel_TempChunkList.Hash=ChunkX+(ChunkZ*Voxel_ChunkMax.X)
-	if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 then Voxel_LoadChunkList.insert(Voxel_TempChunkList)
+	if ChunkX>Voxel_ChunkView.Min.X and ChunkX<Voxel_ChunkView.Max.X and ChunkZ>Voxel_ChunkView.Min.Z and ChunkZ<Voxel_ChunkView.Max.Z
+		Voxel_TempChunkList.X=ChunkX
+		Voxel_TempChunkList.Z=ChunkZ
+		Voxel_TempChunkList.Hash=ChunkX+(ChunkZ*Voxel_ChunkMax.X)
+		if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 then Voxel_LoadChunkList.insert(Voxel_TempChunkList)
+	endif
 endfunction
 
 function Voxel_AddChunktoUnloadList(ChunkX,ChunkZ)
@@ -278,67 +354,51 @@ function Voxel_AddChunktoUnloadList(ChunkX,ChunkZ)
 	if Voxel_UnloadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1 then Voxel_UnloadChunkList.insert(Voxel_TempChunkList)
 endfunction
 
-function Voxel_GetBlockTypeFromChunk(World ref as WorldData,ChunkX,ChunkZ,GlobalX,GlobalY,GlobalZ)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
-	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
+function Voxel_GetHeight(World ref as WorldData,GlobalX,GlobalZ)
+	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
+	BlockType=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
 endfunction BlockType
 
 function Voxel_GetBlockType(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
 	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
 	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
 	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
 endfunction BlockType
 
 function Voxel_SetBlockType(World ref as WorldData,GlobalX,GlobalY,GlobalZ,BlockType)
 	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
 	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
 	World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]=BlockType
 endfunction
 
 function Voxel_GetBlockLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
 	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
 	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
 	LightValue=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,GlobalY,LocalZ]
 endfunction LightValue
 
 function Voxel_SetBlockLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ,LightValue)
 	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
 	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
 	World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,GlobalY,LocalZ]=LightValue
 endfunction
 
 function Voxel_GetSunLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ)
 	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
 	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
 	LightValue=World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,GlobalY,LocalZ]
 endfunction LightValue
 
@@ -346,14 +406,12 @@ function Voxel_SetSunLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ,LightV
 	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
 	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
 	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-	if LocalX<0 then LocalX=0
-	if GlobalY<0 then GlobalY=0
-	if LocalZ<0 then LocalZ=0
+	LocalX=Core_WrapInteger(GlobalX,Voxel_ChunkSize)
+	LocalZ=Core_WrapInteger(GlobalZ,Voxel_ChunkSize)
 	World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,GlobalY,LocalZ]=LightValue
 endfunction
 
-function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldData,CameraX,CameraZ,ViewDistance)	
+function Voxel_UpdateChunks(World ref as WorldData,CameraX,CameraZ,ViewDistance)	
 	Voxel_CameraChunkX=trunc(CameraX/Voxel_ChunkSize)
 	Voxel_CameraChunkZ=trunc(CameraZ/Voxel_ChunkSize)
 	
@@ -362,6 +420,59 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 		CameraDirZ=Voxel_CameraChunkZ-Voxel_CameraChunkOldZ
 		Voxel_CameraChunkOldX=Voxel_CameraChunkX
 		Voxel_CameraChunkOldZ=Voxel_CameraChunkZ
+
+		MinX=Core_Clamp(Voxel_CameraChunkX-ViewDistance,0,Voxel_ChunkMax.X)
+		MaxX=Core_Clamp(Voxel_CameraChunkX+ViewDistance,0,Voxel_ChunkMax.X)
+		MinZ=Core_Clamp(Voxel_CameraChunkZ-ViewDistance,0,Voxel_ChunkMax.Z)
+		MaxZ=Core_Clamp(Voxel_CameraChunkZ+ViewDistance,0,Voxel_ChunkMax.Z)
+		
+		if CameraDirX = 1
+		    for ChunkZ = MinZ to MaxZ
+//~				for ChunkX = MaxX to MinX+1 step -1
+//~				    World.Chunk[ChunkX-1, ChunkZ] = World.Chunk[ChunkX, ChunkZ]
+//~				next ChunkX
+		
+		        if World.Chunk[MinX, ChunkZ].Visited = 1
+		            Voxel_AddChunktoUnloadList(MinX, ChunkZ)
+		            World.Chunk[MinX, ChunkZ].Visited = 0
+		        endif
+		    next ChunkZ
+		elseif CameraDirX = -1
+		    for ChunkZ = MinZ to MaxZ
+//~		        for ChunkX = MinX to MaxX - 1
+//~		            World.Chunk[ChunkX + 1, ChunkZ] = World.Chunk[ChunkX, ChunkZ]
+//~		        next ChunkX
+		
+		        if World.Chunk[MaxX, ChunkZ].Visited = 1
+		            Voxel_AddChunktoUnloadList(MaxX, ChunkZ)
+		            World.Chunk[MaxX, ChunkZ].Visited = 0
+		        endif
+		    next ChunkZ
+		endif
+		
+		if CameraDirZ = 1
+		    for ChunkX = MinX to MaxX
+//~		        for ChunkZ = MaxZ to MinZ+1 step -1
+//~		            World.Chunk[ChunkX, ChunkZ - 1] = World.Chunk[ChunkX, ChunkZ]
+//~		        next ChunkZ
+		
+		        if World.Chunk[ChunkX, MinZ].Visited = 1
+		            Voxel_AddChunktoUnloadList(ChunkX, MinZ)
+		            World.Chunk[ChunkX, MinZ].Visited = 0
+		        endif
+		    next ChunkX
+		elseif CameraDirZ = -1
+		    for ChunkX = MinX to MaxX
+//~		        for ChunkZ = MinZ to MaxZ-1
+//~		            World.Chunk[ChunkX, ChunkZ + 1] = World.Chunk[ChunkX, ChunkZ]
+//~		        next ChunkZ
+		
+		        if World.Chunk[ChunkX, MaxZ].Visited = 1
+		            Voxel_AddChunktoUnloadList(ChunkX, MaxZ)
+		            World.Chunk[ChunkX, MaxZ].Visited = 0
+		        endif
+		    next ChunkX
+		endif
 	
 		for Dist=0 to ViewDistance
 			Voxel_ChunkView.Min.X=Core_Clamp(Voxel_CameraChunkX-Dist,0,Voxel_ChunkMax.X)
@@ -371,55 +482,20 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 		
 			for ChunkX=Voxel_ChunkView.Min.X to Voxel_ChunkView.Max.X
 				for ChunkZ=Voxel_ChunkView.Min.Z to Voxel_ChunkView.Max.Z
-					if World.Chunk[ChunkX,ChunkZ].ObjectID=0
-						Voxel_TempChunkList.X=ChunkX
-						Voxel_TempChunkList.Z=ChunkZ
-						Voxel_TempChunkList.Hash=ChunkX+(ChunkZ*Voxel_ChunkMax.X)
-						if Voxel_LoadChunkList.IndexOf(Voxel_TempChunkList.Hash)=-1
-							Voxel_LoadChunkList.insert(Voxel_TempChunkList)
-							if World.Chunk[ChunkX,ChunkZ].ObjectID=0 then Voxel_CreateBlocks(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
+					if World.Chunk[ChunkX,ChunkZ].SolidObjectID=0 and World.Chunk[ChunkX,ChunkZ].LooseObjectID=0
+						Voxel_AddChunktoLoadList(ChunkX,ChunkZ)
+						if World.Chunk[ChunkX,ChunkZ].Visited=0
+							if Voxel_ChunkFileExists(ChunkX,ChunkZ)
+								Voxel_LoadChunk(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
+							else
+								Voxel_GenerateChunk(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
+							endif
+							World.Chunk[ChunkX,ChunkZ].Visited=1
 						endif
 					endif
 				next ChunkZ
 			next ChunkX
 		next Dist
-		
-		//>--- unkomment this to unload chunks outside of the view range ----<
-		
-//~		MinX=Core_Clamp(Voxel_CameraChunkX-ViewDistance-1,0,Voxel_ChunkMax.X)
-//~		MinZ=Core_Clamp(Voxel_CameraChunkZ-ViewDistance-1,0,Voxel_ChunkMax.Z)
-//~		MaxX=Core_Clamp(Voxel_CameraChunkX+ViewDistance+1,0,Voxel_ChunkMax.X)
-//~		MaxZ=Core_Clamp(Voxel_CameraChunkZ+ViewDistance+1,0,Voxel_ChunkMax.Z)
-//~		if CameraDirX=1
-//~			for ChunkZ=MinZ to MaxZ
-//~				if World.Chunk[MinX,ChunkZ].Visible=1
-//~					Voxel_AddChunktoUnloadList(MinX,ChunkZ)
-//~					World.Chunk[MinX,ChunkZ].Visible=0
-//~				endif
-//~			next ChunkZ
-//~		elseif CameraDirX-1
-//~			for ChunkZ=MinZ to MaxZ
-//~				if World.Chunk[MaxX,ChunkZ].Visible=1
-//~					Voxel_AddChunktoUnloadList(MaxX,ChunkZ)
-//~					World.Chunk[MaxX,ChunkZ].Visible=0
-//~				endif
-//~			next ChunkZ
-//~		endif
-//~		if CameraDirZ=1
-//~			for ChunkX=MinX to MaxX
-//~				if World.Chunk[ChunkX,MinZ].Visible=1
-//~					Voxel_AddChunktoUnloadList(ChunkX,MinZ)
-//~					World.Chunk[ChunkX,MinZ].Visible=0
-//~				endif
-//~			next ChunkX
-//~		elseif CameraDirZ-1
-//~			for ChunkX=MinX to MaxX
-//~				if World.Chunk[ChunkX,MaxZ].Visible=1
-//~					Voxel_AddChunktoUnloadList(ChunkX,MaxZ)
-//~					World.Chunk[ChunkX,MaxZ].Visible=0
-//~				endif
-//~			next ChunkX
-//~		endif
 	endif
 	
 	Timer#=Timer()
@@ -429,143 +505,86 @@ function Voxel_UpdateChunks(FaceImages ref as FaceimageData,World ref as WorldDa
 		if Voxel_LoadChunkList.length>-1
 			ChunkX=Voxel_LoadChunkList[0].X
 			ChunkZ=Voxel_LoadChunkList[0].Z
-			
-			if World.Chunk[ChunkX,ChunkZ].ObjectID=0
-				Voxel_UpdateChunkSunLight(World,ChunkX,ChunkZ,15)
-				Voxel_CreateChunk(Faceimages,World,ChunkX,ChunkZ)
-			else
-				Voxel_UpdateChunkSunLight(World,ChunkX,ChunkZ,15)
-				Voxel_UpdateChunk(Faceimages,World,ChunkX,ChunkZ)
-			endif
-			
+			Voxel_UpdateChunkSunLight(World,ChunkX,ChunkZ,15)
+			Voxel_UpdateChunk(World,ChunkX,ChunkZ)
 			Voxel_LoadChunkList.remove(0)
 		endif
 		
-		//>--- unkomment this to unload chunks outside of the view range ----<
-		
-//~		if Voxel_UnloadChunkList.length>-1
-//~			ChunkX=Voxel_UnloadChunkList[0].X
-//~			ChunkZ=Voxel_UnloadChunkList[0].Z
-//~			Voxel_SaveChunk(World,World.Chunk[ChunkX,ChunkZ].Border,ChunkX,ChunkZ)
-//~			Voxel_DeleteObject(World.Chunk[ChunkX,ChunkZ])
-//~			Voxel_UnloadChunkList.remove(0)
-//~		endif
+		if Voxel_UnloadChunkList.length>-1
+			ChunkX=Voxel_UnloadChunkList[0].X
+			ChunkZ=Voxel_UnloadChunkList[0].Z
+			Voxel_SaveChunk(World.Chunk[ChunkX,ChunkZ],ChunkX,ChunkZ)
+			Voxel_DeleteObject(World.Chunk[ChunkX,ChunkZ])
+			Voxel_UnloadChunkList.remove(0)
+		endif
 	endif
 endfunction
 
 function Voxel_DeleteObject(Chunk ref as ChunkData)	
-	DeleteObject(Chunk.ObjectID)
-	Chunk.ObjectID=0
+	DeleteObject(Chunk.SolidObjectID)
+	DeleteObject(Chunk.LooseObjectID)
+	Chunk.SolidObjectID=0
+	Chunk.LooseObjectID=0
 endfunction
 
-function Voxel_CreateChunk(FaceImages ref as FaceimageData,World ref as WorldData,ChunkX,ChunkZ)	
+function Voxel_GenerateChunk(Chunk ref as Chunkdata,ChunkX,ChunkZ)	
 	StartTime#=Timer()
 	
-	Voxel_TempChunk=World.Chunk[ChunkX,ChunkZ]
-	for LocalX=0 to Voxel_ChunkSize-1
-		for LocalZ=0 to Voxel_ChunkSize-1
-			for LocalY=0 to Voxel_TempChunk.Height[LocalX,LocalZ]
-				GlobalX=ChunkX*Voxel_ChunkSize+LocalX
-				GlobalZ=ChunkZ*Voxel_ChunkSize+LocalZ
-				Voxel_GenerateCubeFaces(Voxel_TempObject,Faceimages,World,GlobalX,LocalY,GlobalZ)
-			next LocalY
-		next LocalZ
-	next LocalX
-	Voxel_DebugTime#=Timer()-StartTime#
-	
-	if Voxel_TempObject.Vertex.length>1
-		MemblockID=Voxel_CreateMeshMemblock(Voxel_TempObject.Vertex.length+1,Voxel_TempObject.Index.length+1)
-		Voxel_WriteMeshMemblock(MemblockID,Voxel_TempObject)		
-		ObjectID=CreateObjectFromMeshMemblock(MemblockID)
-		DeleteMemblock(MemblockID)
-		Voxel_TempObject.Index.length=-1
-		Voxel_TempObject.Vertex.length=-1
-		
-		SetObjectPosition(ObjectID,ChunkX*Voxel_ChunkSize,0,ChunkZ*Voxel_ChunkSize)
-		SetObjectImage(ObjectID,Voxel_DiffuseImageID,0)
-		SetObjectShader(ObjectID,Voxel_ShaderID)
-		World.Chunk[ChunkX,ChunkZ].ObjectID=ObjectID
-		World.Chunk[ChunkX,ChunkZ].Visible=1
-	endif
-	Voxel_DebugMeshBuildingTime#=Timer()-StartTime#
-endfunction ObjectID
-
-function Voxel_UpdateChunk(Faceimages ref as FaceimageData,World ref as WorldData,ChunkX,ChunkZ)
-	StartTime#=Timer()
-	Voxel_TempChunk=World.Chunk[ChunkX,ChunkZ]
-	local Object as ObjectData
-	for LocalX=0 to Voxel_ChunkSize-1
-		for LocalZ=0 to Voxel_ChunkSize-1
-			for LocalY=0 to Voxel_TempChunk.Height[LocalX,LocalZ]
-				GlobalX=ChunkX*Voxel_ChunkSize+LocalX
-				GlobalZ=ChunkZ*Voxel_ChunkSize+LocalZ
-				Voxel_GenerateCubeFaces(Object,Faceimages,World,GlobalX,LocalY,GlobalZ)
-			next LocalY
-		next LocalZ
-	next LocalX
-	Voxel_DebugTime#=Timer()-StartTime#
-	
-	if Object.Vertex.length>1
-		MemblockID=Voxel_CreateMeshMemblock(Object.Vertex.length+1,Object.Index.length+1)
-		Voxel_WriteMeshMemblock(MemblockID,Object)
-		SetObjectMeshFromMemblock(World.Chunk[ChunkX,ChunkZ].ObjectID,1,MemblockID)
-		DeleteMemblock(MemblockID)
-		Object.Index.length=-1
-		Object.Vertex.length=-1
-	endif
-	Voxel_DebugMeshBuildingTime#=Timer()-StartTime#
-endfunction
-
-function Voxel_CreateBlocks(Chunk ref as Chunkdata,ChunkX,ChunkZ)	
-	Frecueny2D#=32.0
-	Frecueny3DCave#=12.0
-	Frecueny3DIron#=2.0
-	DirtLayerHeight=3
-	GrassStart=Voxel_BlockMax.Y*0.4
+	local BlockType as integer
 	for LocalX=0 to Voxel_ChunkSize-1
 		for LocalZ=0 to Voxel_ChunkSize-1
 			NoiseX=ChunkX*Voxel_ChunkSize+LocalX
 			NoiseZ=ChunkZ*Voxel_ChunkSize+LocalZ
 			
-			Value1#=GetNoiseXY(NoiseX/Frecueny2D#,NoiseZ/Frecueny2D#)*Voxel_BlockMax.Y
-			GrassLayer=GrassStart+Value1#/12.0
-			Chunk.Height[LocalX,LocalZ]=GrassLayer
-			
-			for LocalY=GrassLayer to 0 step -1
+			Value1#=GetNoiseXY(NoiseX/Voxel_Frecueny2D#,NoiseZ/Voxel_Frecueny2D#)*Voxel_BlockMax.Y*0.5+0.5
+			GrassLayer=Voxel_GrassHeight+Value1#/6.0
+			DirtHeight=GrassLayer-3
+			SeaHeight=Voxel_SeaHeight
+			SandHeight=SeaHeight
+			MaxY=Core_Max(GrassLayer,SeaHeight)
+			Chunk.Height[LocalX,LocalZ]=MaxY
+			for LocalY=MaxY to 0 step -1
+				BlockType=0
 				if LocalY=GrassLayer
-					Chunk.BlockType[LocalX,LocalY,LocalZ]=1
-				elseif LocalY>=GrassLayer-DirtLayerHeight and LocalY<GrassLayer
-					Chunk.BlockType[LocalX,LocalY,LocalZ]=3
-				elseif LocalY<GrassLayer-DirtLayerHeight
-					Chunk.BlockType[LocalX,LocalY,LocalZ]=2
+					BlockType=1 // Grass
+				elseif LocalY>=DirtHeight and LocalY<GrassLayer
+					BlockType=3 // Dirt
+				elseif LocalY<DirtHeight
+					BlockType=2 // Stone
 				endif
 				
-				Cave#=GetNoiseXYZ(NoiseX/Frecueny3DCave#,LocalY/Frecueny3DCave#,NoiseZ/Frecueny3DCave#)
-				if Cave#>0.5
-					Chunk.BlockType[LocalX,LocalY,LocalZ]=0
+				if LocalY<=SeaHeight and BlockType=0
+					BlockType=25 // Water
+				elseif LocalY<=SandHeight and BlockType=1
+					BlockType=22 // Sand
+				endif
+				
+				Cave#=abs(GetNoiseXYZ(NoiseX/Voxel_Frecueny3DCave#,LocalY/Voxel_Frecueny3DCave#,NoiseZ/Voxel_Frecueny3DCave#))
+				if Cave#>0.75
+					BlockType=0
 					if LocalY=Chunk.Height[LocalX,LocalZ] then Chunk.Height[LocalX,LocalZ]=LocalY-1
 				endif
 				
 				Chunk.SunLight[LocalX,LocalY,LocalZ]=Voxel_AmbientLight
 				Chunk.BlockLight[LocalX,LocalY,LocalZ]=Voxel_AmbientLight
-//~				if LocalY>Chunk.Height[LocalX,LocalZ]
-//~					Chunk.SunLight[LocalX,LocalY,LocalZ]=15
-//~				endif
+				Chunk.BlockType[LocalX,LocalY,LocalZ]=BlockType
 			next LocalY
 		next LocalZ
 	next LocalX
+	
+	Voxel_DebugNoiseTime#=Timer()-StartTime#
 endfunction
 
 function Voxel_CreateBlockLight(World ref as WorldData,ChunkX,ChunkZ,LocalX,LocalY,LocalZ)	
-	LightIntensitiy=Voxel_IsLightBlock(World.Chunk[ChunkX,ChunkZ],LocalX,LocalY,LocalZ)
-	if LightIntensitiy>Voxel_AmbientLight
-		Voxel_UpdateBlockLight(World,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,LightIntensitiy)
+	LightValue=Voxel_IsLightBlock(World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,LocalY,LocalZ])
+	if LightValue>Voxel_AmbientLight
+		Voxel_UpdateBlockLight(World,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,LightValue)
 	endif
 endfunction
 
 function Voxel_UpdateBlockLight(World ref as WorldData,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,StartBlockLight as integer)
-	local FrontierTemp as Int3Data
-	local Frontier as Int3Data[]
+	local FrontierTemp as FrontierData
+	local Frontier as FrontierData[]
 
 	FrontierTemp.X=ChunkX*Voxel_ChunkSize+LocalX
 	FrontierTemp.Y=LocalY
@@ -584,16 +603,16 @@ function Voxel_UpdateBlockLight(World ref as WorldData,ChunkX,ChunkZ,LocalX,Loca
 			NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
 			NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
 			NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
+			
 			NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
 			NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
 			if NeighbourLocalX<0 or NeighbourY<0 or NeighbourLocalZ<0 then continue
 			NeighbourChunkX=trunc(NeighbourX/Voxel_ChunkSize)
 			NeighbourChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
 			
-			if Voxel_IsTransparentBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ],NeighbourLocalX,NeighbourY,NeighbourLocalZ)=1
-				NeighbourBlockLight=World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
+			if Voxel_IsTransparentBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockType[NeighbourLocalX,NeighbourY,NeighbourLocalZ])=1
 				CurrentBlockLight=Voxel_GetBlockLight(World,GlobalX,GlobalY,GlobalZ)
-				if CurrentBlockLight>NeighbourBlockLight+1
+				if CurrentBlockLight>World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]+1
 					FrontierTemp.X=NeighbourX
 					FrontierTemp.Y=NeighbourY
 					FrontierTemp.Z=NeighbourZ
@@ -608,8 +627,8 @@ function Voxel_UpdateBlockLight(World ref as WorldData,ChunkX,ChunkZ,LocalX,Loca
 endfunction
 
 function Voxel_UpdateBlockShadow(World ref as WorldData,ChunkX,ChunkZ,LocalX,LocalY,LocalZ)
-	local FrontierTemp as Int3Data
-	local Frontier as Int3Data[]
+	local FrontierTemp as FrontierData
+	local Frontier as FrontierData[]
 	local TempChunk as ChunkData
 	local TempSpreadLight as SpreadLightData
 
@@ -636,14 +655,15 @@ function Voxel_UpdateBlockShadow(World ref as WorldData,ChunkX,ChunkZ,LocalX,Loc
 				NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
 				NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
 				NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
+				
 				NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
 				NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
 				if NeighbourLocalX<0 or NeighbourY<0 or NeighbourLocalZ<0 then continue
 				NeighbourChunkX=trunc(NeighbourX/Voxel_ChunkSize)
 				NeighbourChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
-				TempChunk=World.Chunk[NeighbourChunkX,NeighbourChunkZ]
-				if Voxel_IsTransparentBlock(TempChunk,NeighbourLocalX,NeighbourY,NeighbourLocalZ)=1
-					NeighbourBlockLight=TempChunk.BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
+				
+				if Voxel_IsTransparentBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockType[NeighbourLocalX,NeighbourY,NeighbourLocalZ])=1
+					NeighbourBlockLight=World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
 					if CurrentBlockLight>NeighbourBlockLight
 						FrontierTemp.X=NeighbourX
 						FrontierTemp.Y=NeighbourY
@@ -665,24 +685,25 @@ function Voxel_UpdateBlockShadow(World ref as WorldData,ChunkX,ChunkZ,LocalX,Loc
 		endif
 	endwhile
 
-	for ID=0 to Voxel_SpreadLight.length
+	for ID=0 to Voxel_SpreadLight.length-1
 		GlobalX=Voxel_SpreadLight[ID].X
 		GlobalY=Voxel_SpreadLight[ID].Y
 		GlobalZ=Voxel_SpreadLight[ID].Z
 		Light=Voxel_SpreadLight[ID].Light
 		
-		ChunkX=trunc(GlobalX/Voxel_ChunkSize)
-		ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
 		LocalX=Mod(GlobalX,Voxel_ChunkSize)
 		LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
-//~		Voxel_UpdateBlockLight(World,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,Light)
+		ChunkX=trunc(GlobalX/Voxel_ChunkSize)
+		ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
+		
+		Voxel_UpdateBlockLight(World,ChunkX,ChunkZ,LocalX,LocalY,LocalZ,Light)
 	next ID
 	Voxel_SpreadLight.length=-1
 endfunction
 
 //~function Voxel_UpdateSunLight(World ref as WorldData,StartX,StartY,StartZ,StartSunLight as integer)
-//~	local FrontierTemp as Int3Data
-//~	local Frontier as Int3Data[]
+//~	local FrontierTemp as Core_Int3Data
+//~	local Frontier as Core_Int3Data[]
 
 //~	FrontierTemp.X=StartX
 //~	FrontierTemp.Y=StartY
@@ -721,16 +742,34 @@ endfunction
 //~endfunction
 
 function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSunLight as integer)
-	local FrontierTemp as Int3Data
-	local Frontier as Int3Data[]
+	StartTime#=Timer()
+	
+	local FrontierTemp as FrontierData
 
-	benchmark# = GetMilliseconds()
-	for LocalX=0 to Voxel_ChunkSize-1
+	for LocalX=0 to Voxel_ChunkSize-1		
+		ChunkEast=trunc((LocalX+1)/Voxel_ChunkSize)
+		LocalEast=Core_WrapInteger(LocalX+1,Voxel_ChunkSize)
+		
+		ChunkWest=trunc((LocalX-1)/Voxel_ChunkSize)
+		LocalWest=Core_WrapInteger(LocalX-1,Voxel_ChunkSize)
+		
 		for LocalZ=0 to Voxel_ChunkSize-1
-			HeightNorth=World.Chunk[ChunkX,ChunkZ].Height[LocalX,trunc(Core_Clamp(LocalZ+1,0,Voxel_ChunkSize-1))]
-			HeightSouth=World.Chunk[ChunkX,ChunkZ].Height[LocalX,trunc(Core_Clamp(LocalZ-1,0,Voxel_ChunkSize-1))]
-			HeightEast=World.Chunk[ChunkX,ChunkZ].Height[trunc(Core_Clamp(LocalX+1,0,Voxel_ChunkSize-1)),LocalZ]
-			HeightWest=World.Chunk[ChunkX,ChunkZ].Height[trunc(Core_Clamp(LocalX-1,0,Voxel_ChunkSize-1)),LocalZ]
+			ChunkNorth=trunc((LocalZ+1)/Voxel_ChunkSize)
+			LocalNorth=Core_WrapInteger(LocalZ+1,Voxel_ChunkSize)
+			
+			ChunkSouth=trunc((LocalZ-1)/Voxel_ChunkSize)
+			LocalSouth=Core_WrapInteger(LocalZ-1,Voxel_ChunkSize)
+			
+			HeightNorth=World.Chunk[ChunkX,ChunkNorth].Height[LocalX,LocalNorth]
+			HeightSouth=World.Chunk[ChunkX,ChunkSouth].Height[LocalX,LocalSouth]
+			HeightEast=World.Chunk[ChunkEast,ChunkZ].Height[LocalEast,LocalZ]
+			HeightWest=World.Chunk[ChunkWest,ChunkZ].Height[LocalWest,LocalZ]
+
+//~			HeightNorth=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalNorth]
+//~			HeightSouth=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalSouth]
+//~			HeightEast=World.Chunk[ChunkX,ChunkZ].Height[LocalEast,LocalZ]
+//~			HeightWest=World.Chunk[ChunkX,ChunkZ].Height[LocalWest,LocalZ]
+			
 			HeightCurrent=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
 			
 			LocalY=Core_Max(HeightNorth,Core_Max(HeightSouth,Core_Max(HeightEast,Core_Max(HeightWest,HeightCurrent))))+1
@@ -741,72 +780,69 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 				dec HeightY
 			endwhile
 			
-			LocalY=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]+1
+			LocalY=Core_Clamp(World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]+1,0,Voxel_BlockMax.Y)
+			FrontierTemp.Dir=5
 			FrontierTemp.X=ChunkX*Voxel_ChunkSize+LocalX
 			FrontierTemp.Y=LocalY
 			FrontierTemp.Z=ChunkZ*Voxel_ChunkSize+LocalZ
-			Frontier.insert(FrontierTemp)
+			World.Chunk[ChunkX,ChunkZ].SunFrontier.insert(FrontierTemp)
 			
 			World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,LocalY,LocalZ]=StartSunLight
-			
 		next LocalZ
 	next LocalX
 	
-	print("1: "+str(GetMilliseconds()-benchmark#))
-	benchmark# = GetMilliseconds()
-	print("Frontier length: "+str(Frontier.length))
-	iterations# = 0
-	
-	while Frontier.length>=0
-		inc iterations#
-		GlobalX=Frontier[0].X
-		GlobalY=Frontier[0].Y
-		GlobalZ=Frontier[0].Z
-		Frontier.remove(0)
+	Voxel_DebugIterations=0
+	while World.Chunk[ChunkX,ChunkZ].SunFrontier.length>=0
+		inc Voxel_DebugIterations
+		Direction=World.Chunk[ChunkX,ChunkZ].SunFrontier[0].Dir
+		GlobalX=World.Chunk[ChunkX,ChunkZ].SunFrontier[0].X
+		GlobalY=World.Chunk[ChunkX,ChunkZ].SunFrontier[0].Y
+		GlobalZ=World.Chunk[ChunkX,ChunkZ].SunFrontier[0].Z
+		World.Chunk[ChunkX,ChunkZ].SunFrontier.remove(0)
 		
 		for NeighbourID=0 to 5
+			if NeighbourID+Direction=5 then continue
+				
 			NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
 			NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
 			NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
+			
+			if NeighbourX<0 or NeighbourZ<0 or NeighbourX>Voxel_BlockMax.X or NeighbourZ>Voxel_BlockMax.Z then continue
 			NeighbourLocalX=Mod(NeighbourX,Voxel_ChunkSize)
 			NeighbourLocalZ=Mod(NeighbourZ,Voxel_ChunkSize)
-			if NeighbourLocalX<0 or NeighbourY<0 or NeighbourLocalZ<0 then continue
+			
 			NeighbourChunkX=trunc(NeighbourX/Voxel_ChunkSize)
 			NeighbourChunkZ=trunc(NeighbourZ/Voxel_ChunkSize)
-			
-			if Voxel_IsTransparentBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ],NeighbourLocalX,NeighbourY,NeighbourLocalZ)=1
+						
+			if Voxel_IsOpaqueBlock(World.Chunk[NeighbourChunkX,NeighbourChunkZ].BlockType[NeighbourLocalX,NeighbourY,NeighbourLocalZ])=0
 				NeighbourSunLight=World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]
 				
 				CurrentSunLight=Voxel_GetSunLight(World,GlobalX,GlobalY,GlobalZ)
 				if CurrentSunLight>NeighbourSunLight+1
+					FrontierTemp.Dir=NeighbourID
 					FrontierTemp.X=NeighbourX
 					FrontierTemp.Y=NeighbourY
 					FrontierTemp.Z=NeighbourZ
 					
-//~					if NeighbourLocalX>0 and NeighbourLocalZ>0 and NeighbourLocalX<Voxel_ChunkSize-1 and NeighbourLocalZ<Voxel_ChunkSize-1
-						Frontier.insert(FrontierTemp)
-//~					endif
+					World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunFrontier.insert(FrontierTemp)
+					if NeighbourChunkX<>ChunkX or NeighbourChunkZ<>ChunkZ then Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)				
 					
 					if NeighbourID=1 and CurrentSunLight=15
 						World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]=CurrentSunLight
 					else
 						World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]=CurrentSunLight-1
 					endif
-
-					Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)
 				endif
 			endif
 		next NeighbourID
 	endwhile
 	
-	print("2: "+str(GetMilliseconds()-benchmark#))
-	benchmark# = GetMilliseconds()
-	print("total iterations: "+str(iterations#))
+	Voxel_DebugSunTime#=Timer()-StartTime#
 endfunction
 
 //~function Voxel_UpdateSunShadow(World ref as WorldData,StartX,StartY,StartZ)
-//~	local FrontierTemp as Int3Data
-//~	local Frontier as Int3Data[]
+//~	local FrontierTemp as Core_Int3Data
+//~	local Frontier as Core_Int3Data[]
 //~	local TempSunLight as integer
 //~	local TempSpreadLight as SpreadLightData
 
@@ -865,7 +901,7 @@ function Voxel_UpdateHeightAndSunlight(Chunk ref as ChunkData,LocalX,LocalY,Loca
 //~		Chunk.SunLight[LocalX,LocalY,LocalZ]=LightValue
 		LocalY=LocalY-1
 		if LocalY<=1 then Exitfunction
-	until Voxel_IsTransparentBlock(Chunk,LocalX,LocalY,LocalZ)=0
+	until Chunk.BlockType[LocalX,LocalY,LocalZ]<>0
 	Chunk.Height[LocalX,LocalZ]=LocalY
 //~	if LightValue>Voxel_AmbientLight
 //~		Voxel_UpdateSunLight(World,LocalX,LocalY,LocalZ,LightValue)
@@ -874,21 +910,34 @@ function Voxel_UpdateHeightAndSunlight(Chunk ref as ChunkData,LocalX,LocalY,Loca
 //~	endif
 endfunction
 
-function Voxel_IsLightBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
-	select Chunk.BlockType[LocalX,LocalY,LocalZ]
-		case 11
-			exitfunction 14
-		endcase
-	endselect
-endfunction 0
+//~function Voxel_JoinFace(CurrentBlockType,NeighbourBlockType)
+//~	if CurrentBlockType=0 or NeighbourBlockType=0 then exitfunction 0
+//~	if Voxel_Blocks.Attributes[CurrentBlockType-1].JoinFace
+//~		exitfunction (CurrentBlockType=NeighbourBlockType)
+//~	endif
+//~endfunction 0
 
-function Voxel_IsTransparentBlock(Chunk ref as ChunkData,LocalX,LocalY,LocalZ)
-	select Chunk.BlockType[LocalX,LocalY,LocalZ]
-		case 0
-			exitfunction 1
-		endcase
-	endselect
-endfunction 0
+function Voxel_JoinFace(CurrentBlockType, NeighbourBlockType)
+    if CurrentBlockType = 0 or NeighbourBlockType = 0 then exitfunction 0
+//~    if Voxel_Blocks.Attributes[CurrentBlockType-1].JoinFace
+//~    	exitfunction (CurrentBlockType = NeighbourBlockType)
+//~    endif
+endfunction (CurrentBlockType = NeighbourBlockType)
+
+function Voxel_IsOpaqueBlock(BlockType)
+	if BlockType=0 then exitfunction 0
+	Opaque=Voxel_Blocks.Attributes[BlockType-1].Opaque
+endfunction Opaque
+
+function Voxel_IsLightBlock(BlockType)
+	if BlockType=0 then exitfunction Voxel_AmbientLight
+	Light=Voxel_Blocks.Attributes[BlockType-1].Light
+endfunction Light
+
+function Voxel_IsTransparentBlock(BlockType)
+	if BlockType=0 then exitfunction 1
+	Solid=1-Voxel_Blocks.Attributes[BlockType-1].Solid
+endfunction Solid
 
 function Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
 	if LocalX=Voxel_ChunkSize-1
@@ -948,8 +997,8 @@ function Voxel_RemoveCubeFromObject(World ref as WorldData,GlobalX,GlobalY,Globa
 	Voxel_AddNeighbouringChunkstoList(ChunkX,ChunkZ,LocalX,LocalZ)
 endfunction BlockType
 
-function Voxel_RemoveCubeListFromObject(World ref as WorldData,CubeList as Int3Data[])
-	local TempLocal as Int3Data
+function Voxel_RemoveCubeListFromObject(World ref as WorldData,CubeList as Core_Int3Data[])
+	local TempLocal as Core_Int3Data
 	
 	for Index=0 to CubeList.length
 		GlobalX=CubeList[Index].X
@@ -974,421 +1023,493 @@ function Voxel_RemoveCubeListFromObject(World ref as WorldData,CubeList as Int3D
 	next Index
 endfunction
 
-function Voxel_GenerateCubeFaces(Object ref as ObjectData,Faceimages ref as FaceimageData,World ref as WorldData,GlobalX,GlobalY,GlobalZ)
-	ChunkX=trunc(GlobalX/Voxel_ChunkSize)
-	ChunkZ=trunc(GlobalZ/Voxel_ChunkSize)
-	LocalX=Mod(GlobalX,Voxel_ChunkSize)
-	LocalZ=Mod(GlobalZ,Voxel_ChunkSize)
+function Voxel_UpdateChunk(World ref as WorldData,ChunkX,ChunkZ)
+	StartTime#=Timer()
 	
-	BlockType=World.Chunk[ChunkX,ChunkZ].BlockType[LocalX,GlobalY,LocalZ]
-	if BlockType>0
-		Index=BlockType-1
-		Voxel_TempSubimages[0]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].FrontID]
-		Voxel_TempSubimages[1]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].BackID]
-		Voxel_TempSubimages[2]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].RightID]
-		Voxel_TempSubimages[3]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].LeftID]
-		Voxel_TempSubimages[4]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].UpID]
-		Voxel_TempSubimages[5]=Faceimages.Subimages[Faceimages.FaceimageIndices[Index].DownID]
+	Voxel_TempChunk=World.Chunk[ChunkX,ChunkZ]
+	for LocalX=0 to Voxel_ChunkSize-1
+		for LocalZ=0 to Voxel_ChunkSize-1
+			for LocalY=1 to Voxel_TempChunk.Height[LocalX,LocalZ]
+				BlockType=Voxel_TempChunk.BlockType[LocalX,LocalY,LocalZ]
+				if BlockType<>0
+					GlobalX=ChunkX*Voxel_ChunkSize+LocalX
+					GlobalZ=ChunkZ*Voxel_ChunkSize+LocalZ
+					if Voxel_Blocks.Attributes[BlockType-1].Solid=1
+						Voxel_GenerateCubeFaces(Voxel_TempSolidMesh,World,LocalX,LocalY,LocalZ,GlobalX,GlobalZ,BlockType-1)
+					else
+						Voxel_GenerateCubeFaces(Voxel_TempLooseMesh,World,LocalX,LocalY,LocalZ,GlobalX,GlobalZ,BlockType-1)
+					endif
+				endif
+			next LocalY
+		next LocalZ
+	next LocalX
+	
+	if Voxel_TempSolidMesh.Vertex.length>1
+		if World.Chunk[ChunkX,ChunkZ].SolidObjectID=0
+			ObjectID=Voxel_CreateObject(Voxel_TempSolidMesh,ChunkX,ChunkZ)
+			SetObjectAlphaMask(ObjectID,1)
+			SetObjectShader(ObjectID,Voxel_OpaqueShaderID)
+			World.Chunk[ChunkX,ChunkZ].SolidObjectID=ObjectID
+		else
+			Voxel_UpdateObject(Voxel_TempSolidMesh,World.Chunk[ChunkX,ChunkZ].SolidObjectID,ChunkX,ChunkZ)
+		endif
+	endif
+	if Voxel_TempLooseMesh.Vertex.length>1
+		if World.Chunk[ChunkX,ChunkZ].LooseObjectID=0
+			ObjectID=Voxel_CreateObject(Voxel_TempLooseMesh,ChunkX,ChunkZ)
+			SetObjectTransparency(ObjectID,1)
+			SetObjectShader(ObjectID,Voxel_WaterShaderID)
+			SetObjectDepthBias(ObjectID,-1.0)
+			World.Chunk[ChunkX,ChunkZ].LooseObjectID=ObjectID
+		else
+			Voxel_UpdateObject(Voxel_TempLooseMesh,World.Chunk[ChunkX,ChunkZ].LooseObjectID,ChunkX,ChunkZ)
+		endif
+	endif
+	
+	Voxel_DebugChunkTime#=Timer()-StartTime#
+endfunction
+
+function Voxel_CreateObject(TempMesh ref as MeshData,ChunkX,ChunkZ)
+	StartTime#=Timer()
+	
+	MemblockID=Voxel_CreateMeshMemblock(TempMesh.Vertex.length+1,TempMesh.Index.length+1)
+	Voxel_WriteMeshMemblock(MemblockID,TempMesh)		
+	ObjectID=CreateObjectFromMeshMemblock(MemblockID)
+	DeleteMemblock(MemblockID)
+	TempMesh.Index.length=-1
+	TempMesh.Vertex.length=-1
+	
+	SetObjectPosition(ObjectID,ChunkX*Voxel_ChunkSize,0,ChunkZ*Voxel_ChunkSize)
+	SetObjectImage(ObjectID,Voxel_DiffuseImageID,0)
+	
+	Voxel_DebugMeshTime#=Timer()-StartTime#
+endfunction ObjectID
+
+function Voxel_UpdateObject(TempMesh ref as MeshData,ObjectID,ChunkX,ChunkZ)
+	StartTime#=Timer()
+	
+	MemblockID=Voxel_CreateMeshMemblock(TempMesh.Vertex.length+1,TempMesh.Index.length+1)
+	Voxel_WriteMeshMemblock(MemblockID,TempMesh)
+	SetObjectMeshFromMemblock(ObjectID,1,MemblockID)
+	DeleteMemblock(MemblockID)
+	TempMesh.Index.length=-1
+	TempMesh.Vertex.length=-1
+	
+	Voxel_DebugMeshTime#=Timer()-StartTime#
+endfunction
+
+function Voxel_GenerateCubeFaces(Object ref as MeshData,World ref as WorldData,LocalX,LocalY,LocalZ,GlobalX,GlobalZ,AttributeID)	
+	local LightValue as integer
+	
+	Voxel_TempSubimages[0]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].UpID]
+	Voxel_TempSubimages[1]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].DownID]
+	Voxel_TempSubimages[2]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].BackID]
+	Voxel_TempSubimages[3]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].FrontID]
+	Voxel_TempSubimages[4]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].RightID]
+	Voxel_TempSubimages[5]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].LeftID]
+	
+	CurrentBlockType=Voxel_GetBlockType(World,GlobalX,LocalY,GlobalZ)
+	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX,LocalY+1,GlobalZ)
+	if not(Voxel_IsOpaqueBlock(NeighbourBlockType) or Voxel_JoinFace(CurrentBlockType,NeighbourBlockType))
+		side00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ  ))=0)
+		side01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ  ))=0)
+		side10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX,  LocalY+1,GlobalZ+1))=0)
+		side11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX,  LocalY+1,GlobalZ-1))=0)
+		
+		corner00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ+1))=0)
+		corner01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ+1))=0)
+		corner10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ-1))=0)
+		corner11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ-1))=0)
+		
+		A00=Voxel_GetVertexAO(side10,side00,corner00)
+		A01=Voxel_GetVertexAO(side10,side01,corner01)
+		A10=Voxel_GetVertexAO(side11,side01,corner11)
+		A11=Voxel_GetVertexAO(side11,side00,corner10)
 		
 		Flipped=0
-		local LightValue as integer
-		if Voxel_GetBlockType(World,GlobalX,GlobalY,GlobalZ+1)=0
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ+1)=0)
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ+1)=0)
-			AO0=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ+1)=0)
-			AO1=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ+1)=0)
-			AO2=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ+1)=0)
-			AO3=Voxel_GetVertexAO(side1,side2,corner)
-			
-			if AO0+AO2>AO1+AO3 then Flipped=1
-			
-			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,GlobalY,GlobalZ+1),Voxel_GetSunLight(World,GlobalX,GlobalY,GlobalZ+1))/15.0*255
-			AO0=LightValue-AO0
-			AO1=LightValue-AO1
-			AO2=LightValue-AO2
-			AO3=LightValue-AO3
-			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[0],LocalX,GlobalY,LocalZ,FaceFront,AO0,AO1,AO2,AO3,Flipped)
-		endif
-		if Voxel_GetBlockType(World,GlobalX,GlobalY,GlobalZ-1)=0
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ-1)=0)
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ-1)=0)
-			AO0=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ-1)=0)
-			AO1=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ-1)=0)
-			AO2=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ-1)=0)
-			AO3=Voxel_GetVertexAO(side1,side2,corner)
-			
-			if AO0+AO2>AO1+AO3 then Flipped=1
-			
-			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,GlobalY,GlobalZ-1),Voxel_GetSunLight(World,GlobalX,GlobalY,GlobalZ-1))/15.0*255
-			AO0=LightValue-AO0
-			AO1=LightValue-AO1
-			AO2=LightValue-AO2
-			AO3=LightValue-AO3
-			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[1],LocalX,GlobalY,LocalZ,FaceBack,AO0,AO1,AO2,AO3,Flipped)
-		endif
-		if Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ)=0
-			side1=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ)=0)
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ+1)=0)
-			AO0=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ-1)=0)
-			AO1=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side1=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ-1)=0)
-			AO2=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ+1)=0)
-			AO3=Voxel_GetVertexAO(side1,side2,corner)
-			
-			if AO0+AO2>AO1+AO3 then Flipped=1
-			
-			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX+1,GlobalY,GlobalZ),Voxel_GetSunLight(World,GlobalX+1,GlobalY,GlobalZ))/15.0*255
-			AO0=LightValue-AO0
-			AO1=LightValue-AO1
-			AO2=LightValue-AO2
-			AO3=LightValue-AO3
-			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[2],LocalX,GlobalY,LocalZ,FaceRight,AO0,AO1,AO2,AO3,Flipped)
-		endif
-		if Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ)=0
-			side1=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ)=0)
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ-1)=0)
-			AO0=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ+1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ+1)=0)
-			AO1=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side1=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ+1)=0)
-			AO2=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ-1)=0)
-			AO3=Voxel_GetVertexAO(side1,side2,corner)
-			
-			if AO0+AO2>AO1+AO3 then Flipped=1
-			
-			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX-1,GlobalY,GlobalZ),Voxel_GetSunLight(World,GlobalX-1,GlobalY,GlobalZ))/15.0*255
-			AO0=LightValue-AO0
-			AO1=LightValue-AO1
-			AO2=LightValue-AO2
-			AO3=LightValue-AO3
-			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[3],LocalX,GlobalY,LocalZ,FaceLeft,AO0,AO1,AO2,AO3,Flipped)
-		endif
-		if Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ)=0
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ+1)=0)
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ+1)=0)
-			AO0=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ+1)=0)
-			AO1=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY+1,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY+1,GlobalZ-1)=0)
-			AO2=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY+1,GlobalZ-1)=0)
-			AO3=Voxel_GetVertexAO(side1,side2,corner)
-			
-			if AO0+AO2>AO1+AO3 then Flipped=1
-			
-			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,GlobalY+1,GlobalZ),Voxel_GetSunLight(World,GlobalX,GlobalY+1,GlobalZ))/15.0*255
-			AO0=LightValue-AO0
-			AO1=LightValue-AO1
-			AO2=LightValue-AO2
-			AO3=LightValue-AO3
-			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[4],LocalX,GlobalY,LocalZ,FaceUp,AO0,AO1,AO2,AO3,Flipped)
-		endif
-		if Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ)=0
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ+1)=0)
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ+1)=0)
-			AO0=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ+1)=0)
-			AO1=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side1=(Voxel_GetBlockType(World,GlobalX,GlobalY-1,GlobalZ-1)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX+1,GlobalY-1,GlobalZ-1)=0)
-			AO2=Voxel_GetVertexAO(side1,side2,corner)
-			
-			side2=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ)=0)
-			corner=(Voxel_GetBlockType(World,GlobalX-1,GlobalY-1,GlobalZ-1)=0)
-			AO3=Voxel_GetVertexAO(side1,side2,corner)
-			
-			if AO0+AO2>AO1+AO3 then Flipped=1
-			
-			LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,GlobalY-1,GlobalZ),Voxel_GetSunLight(World,GlobalX,GlobalY-1,GlobalZ))/15.0*255
-			AO0=LightValue-AO0
-			AO1=LightValue-AO1
-			AO2=LightValue-AO2
-			AO3=LightValue-AO3
-			
-			Voxel_AddFaceToObject(Object,Voxel_TempSubimages[5],LocalX,GlobalY,LocalZ,FaceDown,AO0,AO1,AO2,AO3,Flipped)
-		endif
+		if A00+A10>A01+A11 then Flipped=1
+		
+		LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,LocalY+1,GlobalZ),Voxel_GetSunLight(World,GlobalX,LocalY+1,GlobalZ))/15.0*255
+		A00=LightValue-A00
+		A01=LightValue-A01
+		A10=LightValue-A10
+		A11=LightValue-A11
+		
+		Voxel_AddFaceToObject(Object,Voxel_TempSubimages[0],LocalX,LocalY,LocalZ,FaceUp,A00,A01,A10,A11,Flipped)
+	endif
+	
+	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX,LocalY-1,GlobalZ)
+	if not(Voxel_IsOpaqueBlock(NeighbourBlockType) or Voxel_JoinFace(CurrentBlockType,NeighbourBlockType))
+		side00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ  ))=0)
+		side01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ  ))=0)
+		side10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX,  LocalY-1,GlobalZ+1))=0)
+		side11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX,  LocalY-1,GlobalZ-1))=0)
+		
+		corner00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ+1))=0)
+		corner01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ+1))=0)
+		corner10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ-1))=0)
+		corner11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ-1))=0)
+		
+		A00=Voxel_GetVertexAO(side10,side00,corner00)
+		A01=Voxel_GetVertexAO(side10,side01,corner01)
+		A10=Voxel_GetVertexAO(side11,side01,corner11)
+		A11=Voxel_GetVertexAO(side11,side00,corner10)
+		
+		Flipped=1
+		if A00+A10<A01+A11 then Flipped=0
+		
+		LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,LocalY-1,GlobalZ),Voxel_GetSunLight(World,GlobalX,LocalY-1,GlobalZ))/15.0*255
+		A00=LightValue-A00
+		A01=LightValue-A01
+		A10=LightValue-A10
+		A11=LightValue-A11
+		
+		Voxel_AddFaceToObject(Object,Voxel_TempSubimages[1],LocalX,LocalY,LocalZ,FaceDown,A00,A01,A10,A11,Flipped)
+	endif
+	
+	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX,LocalY,GlobalZ+1)
+	if not(Voxel_IsOpaqueBlock(NeighbourBlockType) or Voxel_JoinFace(CurrentBlockType,NeighbourBlockType))
+		side00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY  ,GlobalZ+1))=0)
+		side01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY  ,GlobalZ+1))=0)
+		side10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX  ,LocalY+1,GlobalZ+1))=0)
+		side11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX  ,LocalY-1,GlobalZ+1))=0)
+		
+		corner00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ+1))=0)
+		corner01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ+1))=0)
+		corner10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ+1))=0)
+		corner11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ+1))=0)
+		
+		A00=Voxel_GetVertexAO(side10,side00,corner00)
+		A01=Voxel_GetVertexAO(side10,side01,corner01)
+		A10=Voxel_GetVertexAO(side11,side01,corner11)
+		A11=Voxel_GetVertexAO(side11,side00,corner10)
+		
+		Flipped=0
+		if A00+A10>A01+A11 then Flipped=1
+		
+		LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,LocalY,GlobalZ+1),Voxel_GetSunLight(World,GlobalX,LocalY,GlobalZ+1))/15.0*255
+		A00=LightValue-A00
+		A01=LightValue-A01
+		A10=LightValue-A10
+		A11=LightValue-A11
+		
+		Voxel_AddFaceToObject(Object,Voxel_TempSubimages[2],LocalX,LocalY,LocalZ,FaceFront,A00,A01,A10,A11,Flipped)
+	endif
+	
+	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX,LocalY,GlobalZ-1)
+	if not(Voxel_IsOpaqueBlock(NeighbourBlockType) or Voxel_JoinFace(CurrentBlockType,NeighbourBlockType))
+		side00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY  ,GlobalZ-1))=0)
+		side01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY  ,GlobalZ-1))=0)
+		side10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX  ,LocalY+1,GlobalZ-1))=0)
+		side11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX  ,LocalY-1,GlobalZ-1))=0)
+		
+		corner00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ-1))=0)
+		corner01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ-1))=0)
+		corner10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ-1))=0)
+		corner11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ-1))=0)
+		
+		A00=Voxel_GetVertexAO(side10,side00,corner00)
+		A01=Voxel_GetVertexAO(side10,side01,corner01)
+		A10=Voxel_GetVertexAO(side11,side01,corner11)
+		A11=Voxel_GetVertexAO(side11,side00,corner10)
+		
+		Flipped=1
+		if A00+A10<A01+A11 then Flipped=0
+		
+		LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX,LocalY,GlobalZ-1),Voxel_GetSunLight(World,GlobalX,LocalY,GlobalZ-1))/15.0*255
+		A00=LightValue-A00
+		A01=LightValue-A01
+		A10=LightValue-A10
+		A11=LightValue-A11
+		
+		Voxel_AddFaceToObject(Object,Voxel_TempSubimages[3],LocalX,LocalY,LocalZ,FaceBack,A00,A01,A10,A11,Flipped)
+	endif
+	
+	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX+1,LocalY,GlobalZ)
+	if not(Voxel_IsOpaqueBlock(NeighbourBlockType) or Voxel_JoinFace(CurrentBlockType,NeighbourBlockType))
+		side00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY  ,GlobalZ+1))=0)
+		side01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY  ,GlobalZ-1))=0)
+		side10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ  ))=0)
+		side11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ  ))=0)
+		
+		corner00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ+1))=0)
+		corner01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY+1,GlobalZ-1))=0)
+		corner10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ+1))=0)
+		corner11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX+1,LocalY-1,GlobalZ-1))=0)
+		
+		A00=Voxel_GetVertexAO(side10,side00,corner00)
+		A01=Voxel_GetVertexAO(side10,side01,corner01)
+		A10=Voxel_GetVertexAO(side11,side01,corner11)
+		A11=Voxel_GetVertexAO(side11,side00,corner10)
+		
+		Flipped=1
+		if A00+A10<A01+A11 then Flipped=0
+		
+		LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX+1,LocalY,GlobalZ),Voxel_GetSunLight(World,GlobalX+1,LocalY,GlobalZ))/15.0*255
+		A00=LightValue-A00
+		A01=LightValue-A01
+		A10=LightValue-A10
+		A11=LightValue-A11
+		
+		Voxel_AddFaceToObject(Object,Voxel_TempSubimages[4],LocalX,LocalY,LocalZ,FaceRight,A00,A01,A10,A11,Flipped)
+	endif
+	
+	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX-1,LocalY,GlobalZ)
+	if not(Voxel_IsOpaqueBlock(NeighbourBlockType) or Voxel_JoinFace(CurrentBlockType,NeighbourBlockType))
+		side00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY  ,GlobalZ-1))=0)
+		side01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY  ,GlobalZ+1))=0)
+		side10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ  ))=0)
+		side11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ  ))=0)
+		
+		corner00=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ-1))=0)
+		corner01=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY+1,GlobalZ+1))=0)
+		corner10=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ-1))=0)
+		corner11=(Voxel_IsOpaqueBlock(Voxel_GetBlockType(World,GlobalX-1,LocalY-1,GlobalZ+1))=0)
+		
+		A00=Voxel_GetVertexAO(side10,side00,corner00)
+		A01=Voxel_GetVertexAO(side10,side01,corner01)
+		A10=Voxel_GetVertexAO(side11,side01,corner11)
+		A11=Voxel_GetVertexAO(side11,side00,corner10)
+		
+		Flipped=1
+		if A00+A10<A01+A11 then Flipped=0
+		
+		LightValue=Core_Max(Voxel_GetBlockLight(World,GlobalX-1,LocalY,GlobalZ),Voxel_GetSunLight(World,GlobalX-1,LocalY,GlobalZ))/15.0*255
+		A00=LightValue-A00
+		A01=LightValue-A01
+		A10=LightValue-A10
+		A11=LightValue-A11
+		
+		Voxel_AddFaceToObject(Object,Voxel_TempSubimages[5],LocalX,LocalY,LocalZ,FaceLeft,A00,A01,A10,A11,Flipped)
 	endif
 endfunction
 
 function Voxel_GetVertexAO(side1, side2, corner)
 //~  if (side1 and side2) then exitfunction 0
-endfunction (3 - (side1 + side2 + corner))/3.0*255
+	Result = Core_Min((3 - (side1 + side2 + corner))/3.0*255,224)
+endfunction Result
 
 // Populate the MeshObject with Data
-function Voxel_AddFaceToObject(Object ref as ObjectData,Subimages ref as SubimageData,X,Y,Z,FaceDir,AO0,AO1,AO2,AO3,Flipped)
-	TempVertex as VertexData[3]
+function Voxel_AddFaceToObject(Object ref as MeshData,Subimage ref as SubimageData,X,Y,Z,FaceDir,A00,A01,A10,A11,Flipped)
 	HalfFaceSize#=0.5	
 	TextureSize#=256
 	Select FaceDir
-		case FaceFront
-			Voxel_SetObjectFacePosition(TempVertex[0],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X+HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X+HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			
-			Voxel_SetObjectFaceNormal(TempVertex[0],0,0,1)
-			Voxel_SetObjectFaceNormal(TempVertex[1],0,0,1)
-			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,1)
-			Voxel_SetObjectFaceNormal(TempVertex[3],0,0,1)
-			
-			Left#=Subimages.X/TextureSize#
-			Top#=Subimages.Y/TextureSize#
-			Right#=(Subimages.X+Subimages.Width)/TextureSize#
-			Bottom#=(Subimages.Y+Subimages.Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
-			
-			Voxel_SetObjectFaceColor(TempVertex[0],AO0,AO0,AO0,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],AO1,AO1,AO1,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],AO2,AO2,AO2,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],AO3,AO3,AO3,255)
-			
-//~			Voxel_SetObjectFaceTangent(TempVertex[0],-1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[1],-1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[2],-1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[3],-1,0,0)
-//~			
-//~			Voxel_SetObjectFaceBinormal(TempVertex[0],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[1],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[2],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[3],0,1,0)
-		endcase
-		case FaceBack
-			Voxel_SetObjectFacePosition(TempVertex[0],X+HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X+HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
-			
-			Voxel_SetObjectFaceNormal(TempVertex[0],0,0,-1)
-			Voxel_SetObjectFaceNormal(TempVertex[1],0,0,-1)
-			Voxel_SetObjectFaceNormal(TempVertex[2],0,0,-1)
-			Voxel_SetObjectFaceNormal(TempVertex[3],0,0,-1)
-			
-			Left#=Subimages.X/TextureSize#
-			Top#=Subimages.Y/TextureSize#
-			Right#=(Subimages.X+Subimages.Width)/TextureSize#
-			Bottom#=(Subimages.Y+Subimages.Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
-			
-			Voxel_SetObjectFaceColor(TempVertex[0],AO0,AO0,AO0,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],AO1,AO1,AO1,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],AO2,AO2,AO2,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],AO3,AO3,AO3,255)
-		
-//~			Voxel_SetObjectFaceTangent(TempVertex[0],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[1],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[2],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[3],1,0,0)
-//~			
-//~			Voxel_SetObjectFaceBinormal(TempVertex[0],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[1],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[2],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[3],0,1,0)
-		endcase
-		case FaceRight
-			Voxel_SetObjectFacePosition(TempVertex[0],X+HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X+HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X+HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X+HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			
-			Voxel_SetObjectFaceNormal(TempVertex[0],1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[1],1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[2],1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[3],1,0,0)
-			
-			Left#=Subimages.X/TextureSize#
-			Top#=Subimages.Y/TextureSize#
-			Right#=(Subimages.X+Subimages.Width)/TextureSize#
-			Bottom#=(Subimages.Y+Subimages.Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
-			
-			Voxel_SetObjectFaceColor(TempVertex[0],AO0,AO0,AO0,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],AO1,AO1,AO1,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],AO2,AO2,AO2,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],AO3,AO3,AO3,255)
-		
-//~			Voxel_SetObjectFaceTangent(TempVertex[0],0,0,1)
-//~			Voxel_SetObjectFaceTangent(TempVertex[1],0,0,1)
-//~			Voxel_SetObjectFaceTangent(TempVertex[2],0,0,1)
-//~			Voxel_SetObjectFaceTangent(TempVertex[3],0,0,1)
-//~			
-//~			Voxel_SetObjectFaceBinormal(TempVertex[0],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[1],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[2],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[3],0,1,0)
-		endcase
-		case FaceLeft
-			Voxel_SetObjectFacePosition(TempVertex[0],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
-			
-			Voxel_SetObjectFaceNormal(TempVertex[0],-1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[1],-1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[2],-1,0,0)
-			Voxel_SetObjectFaceNormal(TempVertex[3],-1,0,0)
-			
-			Left#=Subimages.X/TextureSize#
-			Top#=Subimages.Y/TextureSize#
-			Right#=(Subimages.X+Subimages.Width)/TextureSize#
-			Bottom#=(Subimages.Y+Subimages.Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
-			
-			Voxel_SetObjectFaceColor(TempVertex[0],AO0,AO0,AO0,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],AO1,AO1,AO1,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],AO2,AO2,AO2,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],AO3,AO3,AO3,255)
-		
-//~			Voxel_SetObjectFaceTangent(TempVertex[0],0,0,-1)
-//~			Voxel_SetObjectFaceTangent(TempVertex[1],0,0,-1)
-//~			Voxel_SetObjectFaceTangent(TempVertex[2],0,0,-1)
-//~			Voxel_SetObjectFaceTangent(TempVertex[3],0,0,-1)
-//~			
-//~			Voxel_SetObjectFaceBinormal(TempVertex[0],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[1],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[2],0,1,0)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[3],0,1,0)
-		endcase
 		case FaceUp
-			Voxel_SetObjectFacePosition(TempVertex[0],X+HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X+HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[0],X+HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[2],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[3],X+HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
 			
-			Voxel_SetObjectFaceNormal(TempVertex[0],0,1,0)
-			Voxel_SetObjectFaceNormal(TempVertex[1],0,1,0)
-			Voxel_SetObjectFaceNormal(TempVertex[2],0,1,0)
-			Voxel_SetObjectFaceNormal(TempVertex[3],0,1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[0],0,1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[1],0,1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[2],0,1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[3],0,1,0)
 			
-			Left#=Subimages.X/TextureSize#
-			Top#=Subimages.Y/TextureSize#
-			Right#=(Subimages.X+Subimages.Width)/TextureSize#
-			Bottom#=(Subimages.Y+Subimages.Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
+			Left#=Subimage.X/TextureSize#
+			Top#=Subimage.Y/TextureSize#
+			Right#=(Subimage.X+Subimage.Width)/TextureSize#
+			Bottom#=(Subimage.Y+Subimage.Height)/TextureSize#
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],AO0,AO0,AO0,0)
-			Voxel_SetObjectFaceColor(TempVertex[1],AO1,AO1,AO1,0)
-			Voxel_SetObjectFaceColor(TempVertex[2],AO2,AO2,AO2,0)
-			Voxel_SetObjectFaceColor(TempVertex[3],AO3,AO3,AO3,0)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[0],A00,A00,A00,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[1],A01,A01,A01,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[2],A10,A10,A10,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[3],A11,A11,A11,255)
 		
-//~			Voxel_SetObjectFaceTangent(TempVertex[0],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[1],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[2],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[3],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[0],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[1],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[2],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[3],1,0,0)
 //~			
-//~			Voxel_SetObjectFaceBinormal(TempVertex[0],0,0,1)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[1],0,0,1)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[2],0,0,1)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[3],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[0],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[1],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[2],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[3],0,0,1)
 		endcase
 		case FaceDown
-			Voxel_SetObjectFacePosition(TempVertex[0],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[1],X+HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[2],X+HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
-			Voxel_SetObjectFacePosition(TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[0],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[1],X+HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[2],X+HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
 			
-			Voxel_SetObjectFaceNormal(TempVertex[0],0,-1,0)
-			Voxel_SetObjectFaceNormal(TempVertex[1],0,-1,0)
-			Voxel_SetObjectFaceNormal(TempVertex[2],0,-1,0)
-			Voxel_SetObjectFaceNormal(TempVertex[3],0,-1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[0],0,-1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[1],0,-1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[2],0,-1,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[3],0,-1,0)
 			
-			Left#=Subimages.X/TextureSize#
-			Top#=Subimages.Y/TextureSize#
-			Right#=(Subimages.X+Subimages.Width)/TextureSize#
-			Bottom#=(Subimages.Y+Subimages.Height)/TextureSize#
-			Voxel_SetObjectFaceUV(TempVertex[0],Right#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[1],Left#,Top#)
-			Voxel_SetObjectFaceUV(TempVertex[2],Left#,Bottom#)
-			Voxel_SetObjectFaceUV(TempVertex[3],Right#,Bottom#)
+			Left#=Subimage.X/TextureSize#
+			Top#=Subimage.Y/TextureSize#
+			Right#=(Subimage.X+Subimage.Width)/TextureSize#
+			Bottom#=(Subimage.Y+Subimage.Height)/TextureSize#
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[3],Right#,Bottom#)
 			
-			Voxel_SetObjectFaceColor(TempVertex[0],AO0,AO0,AO0,255)
-			Voxel_SetObjectFaceColor(TempVertex[1],AO1,AO1,AO1,255)
-			Voxel_SetObjectFaceColor(TempVertex[2],AO2,AO2,AO2,255)
-			Voxel_SetObjectFaceColor(TempVertex[3],AO3,AO3,AO3,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[0],A00,A00,A00,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[1],A01,A01,A01,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[2],A10,A10,A10,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[3],A11,A11,A11,255)
 		
-//~			Voxel_SetObjectFaceTangent(TempVertex[0],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[1],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[2],1,0,0)
-//~			Voxel_SetObjectFaceTangent(TempVertex[3],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[0],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[1],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[2],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[3],1,0,0)
 //~			
-//~			Voxel_SetObjectFaceBinormal(TempVertex[0],0,0,1)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[1],0,0,1)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[2],0,0,1)
-//~			Voxel_SetObjectFaceBinormal(TempVertex[3],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[0],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[1],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[2],0,0,1)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[3],0,0,1)
+		endcase
+		case FaceFront
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[0],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[1],X+HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[2],X+HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[0],0,0,1)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[1],0,0,1)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[2],0,0,1)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[3],0,0,1)
+			
+			Left#=Subimage.X/TextureSize#
+			Top#=Subimage.Y/TextureSize#
+			Right#=(Subimage.X+Subimage.Width)/TextureSize#
+			Bottom#=(Subimage.Y+Subimage.Height)/TextureSize#
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[3],Right#,Bottom#)
+			
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[0],A00,A00,A00,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[1],A01,A01,A01,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[2],A10,A10,A10,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[3],A11,A11,A11,255)
+			
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[0],-1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[1],-1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[2],-1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[3],-1,0,0)
+//~			
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[0],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[1],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[2],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[3],0,1,0)
+		endcase
+		case FaceBack
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[0],X+HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[2],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[3],X+HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[0],0,0,-1)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[1],0,0,-1)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[2],0,0,-1)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[3],0,0,-1)
+			
+			Left#=Subimage.X/TextureSize#
+			Top#=Subimage.Y/TextureSize#
+			Right#=(Subimage.X+Subimage.Width)/TextureSize#
+			Bottom#=(Subimage.Y+Subimage.Height)/TextureSize#
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[3],Right#,Bottom#)
+			
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[0],A00,A00,A00,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[1],A01,A01,A01,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[2],A10,A10,A10,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[3],A11,A11,A11,255)
+		
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[0],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[1],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[2],1,0,0)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[3],1,0,0)
+//~			
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[0],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[1],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[2],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[3],0,1,0)
+		endcase
+		case FaceRight
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[0],X+HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[1],X+HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[2],X+HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[3],X+HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[0],1,0,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[1],1,0,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[2],1,0,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[3],1,0,0)
+			
+			Left#=Subimage.X/TextureSize#
+			Top#=Subimage.Y/TextureSize#
+			Right#=(Subimage.X+Subimage.Width)/TextureSize#
+			Bottom#=(Subimage.Y+Subimage.Height)/TextureSize#
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[3],Right#,Bottom#)
+			
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[0],A00,A00,A00,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[1],A01,A01,A01,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[2],A10,A10,A10,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[3],A11,A11,A11,255)
+		
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[0],0,0,1)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[1],0,0,1)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[2],0,0,1)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[3],0,0,1)
+//~			
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[0],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[1],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[2],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[3],0,1,0)
+		endcase
+		case FaceLeft
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[0],X-HalfFaceSize#,Y+HalfFaceSize#,Z-HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[1],X-HalfFaceSize#,Y+HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[2],X-HalfFaceSize#,Y-HalfFaceSize#,Z+HalfFaceSize#)
+			Voxel_SetObjectFacePosition(Voxel_TempVertex[3],X-HalfFaceSize#,Y-HalfFaceSize#,Z-HalfFaceSize#)
+			
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[0],-1,0,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[1],-1,0,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[2],-1,0,0)
+			Voxel_SetObjectFaceNormal(Voxel_TempVertex[3],-1,0,0)
+			
+			Left#=Subimage.X/TextureSize#
+			Top#=Subimage.Y/TextureSize#
+			Right#=(Subimage.X+Subimage.Width)/TextureSize#
+			Bottom#=(Subimage.Y+Subimage.Height)/TextureSize#
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[0],Right#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[1],Left#,Top#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[2],Left#,Bottom#)
+			Voxel_SetObjectFaceUV(Voxel_TempVertex[3],Right#,Bottom#)
+			
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[0],A00,A00,A00,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[1],A01,A01,A01,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[2],A10,A10,A10,255)
+			Voxel_SetObjectFaceColor(Voxel_TempVertex[3],A11,A11,A11,255)
+		
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[0],0,0,-1)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[1],0,0,-1)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[2],0,0,-1)
+//~			Voxel_SetObjectFaceTangent(Voxel_TempVertex[3],0,0,-1)
+//~			
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[0],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[1],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[2],0,1,0)
+//~			Voxel_SetObjectFaceBinormal(Voxel_TempVertex[3],0,1,0)
 		endcase
 	endselect
 	
-	Object.Vertex.insert(TempVertex[0])
-	Object.Vertex.insert(TempVertex[1])
-	Object.Vertex.insert(TempVertex[2])
-	Object.Vertex.insert(TempVertex[3])
+	Object.Vertex.insert(Voxel_TempVertex[0])
+	Object.Vertex.insert(Voxel_TempVertex[1])
+	Object.Vertex.insert(Voxel_TempVertex[2])
+	Object.Vertex.insert(Voxel_TempVertex[3])
 	
 	VertexID=Object.Vertex.length-3
 	if Flipped=0
@@ -1500,7 +1621,7 @@ function Voxel_CreateMeshMemblock(VertexCount,IndexCount)
 //~	SetMemblockString(MemblockID,84+4,"binormal"+chr(0))
 endfunction MemblockID
 
-function Voxel_WriteMeshMemblock(MemblockID,Object ref as ObjectData)
+function Voxel_WriteMeshMemblock(MemblockID,Object ref as MeshData)
 	VertexCount=Object.Vertex.length+1
 //~	VertexSize=3*4+3*4+2*4+4*1+3*4+3*4
 	VertexSize=3*4+3*4+2*4+4*1
