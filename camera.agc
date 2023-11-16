@@ -70,7 +70,8 @@ function ControlCamera()
 	    endif
 	endif
     
-    CameraAngleNewX#=Core_CurveAngle(CameraAngleNewX#,CameraAngleX#+PointerDragY#,7.0)
+    CameraAngleNewX#=Core_CurveAngle(CameraAngleNewX#,Core_Clamp(CameraAngleX#+PointerDragY#,-89.0,89.0),7.0)
     CameraAngleNewY#=Core_CurveAngle(CameraAngleNewY#,CameraAngleY#+PointerDragX#,7.0)
     SetCameraRotation(1,CameraAngleNewX#,CameraAngleNewY#,0)
+    Print(GetCameraAngleX(1))
 endfunction
