@@ -1,12 +1,12 @@
 //~#import_plugin OpenSimplexNoise as Noise
 //~#include "threadnoise.agc"
 
-#constant FaceFront	1
-#constant FaceBack	2
-#constant FaceLeft	3
-#constant FaceRight	4
-#constant FaceUp		5
-#constant FaceDown	6
+#constant FaceUp		0
+#constant FaceRight	1
+#constant FaceFront	2
+#constant FaceBack	3
+#constant FaceLeft	4
+#constant FaceDown	5
 
 // Data Types able to represent any AGK mesh
 type VertexData
@@ -194,29 +194,29 @@ function Voxel_Init(World ref as WorldData,ChunkSize,SizeX,SizeY,SizeZ,File$,Wor
 		next ChunkZ
 	next ChunkX
 	
-	Voxel_Neighbors[0].x=0
-	Voxel_Neighbors[0].y=1
-	Voxel_Neighbors[0].z=0
+	Voxel_Neighbors[FaceUp].x=0
+	Voxel_Neighbors[FaceUp].y=1
+	Voxel_Neighbors[FaceUp].z=0
 	
-	Voxel_Neighbors[1].x=1
-	Voxel_Neighbors[1].y=0
-	Voxel_Neighbors[1].z=0
+	Voxel_Neighbors[FaceRight].x=1
+	Voxel_Neighbors[FaceRight].y=0
+	Voxel_Neighbors[FaceRight].z=0
 	
-	Voxel_Neighbors[2].x=0
-	Voxel_Neighbors[2].y=0
-	Voxel_Neighbors[2].z=1
+	Voxel_Neighbors[FaceFront].x=0
+	Voxel_Neighbors[FaceFront].y=0
+	Voxel_Neighbors[FaceFront].z=1
 	
-	Voxel_Neighbors[3].x=0
-	Voxel_Neighbors[3].y=0
-	Voxel_Neighbors[3].z=-1
+	Voxel_Neighbors[FaceBack].x=0
+	Voxel_Neighbors[FaceBack].y=0
+	Voxel_Neighbors[FaceBack].z=-1
 	
-	Voxel_Neighbors[4].x=-1
-	Voxel_Neighbors[4].y=0
-	Voxel_Neighbors[4].z=0
+	Voxel_Neighbors[FaceLeft].x=-1
+	Voxel_Neighbors[FaceLeft].y=0
+	Voxel_Neighbors[FaceLeft].z=0
 	
-	Voxel_Neighbors[5].x=0
-	Voxel_Neighbors[5].y=-1
-	Voxel_Neighbors[5].z=0
+	Voxel_Neighbors[FaceDown].x=0
+	Voxel_Neighbors[FaceDown].y=-1
+	Voxel_Neighbors[FaceDown].z=0
 endfunction
 
 function Voxel_SetSpawn(SpawnX#,SpawnY#,SpawnZ#)
@@ -786,7 +786,7 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 			endwhile
 			
 			LocalY=Core_Clamp(World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]+1,0,Voxel_BlockMax.Y)
-			FrontierTemp.Dir=5
+			FrontierTemp.Dir=FaceDown
 			FrontierTemp.X=ChunkX*Voxel_ChunkSize+LocalX
 			FrontierTemp.Y=LocalY
 			FrontierTemp.Z=ChunkZ*Voxel_ChunkSize+LocalZ
@@ -807,7 +807,7 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 		
 		for NeighbourID=0 to 5
 			if NeighbourID+Direction=5 then continue
-				
+			
 			NeighbourX=GlobalX+Voxel_Neighbors[NeighbourID].X
 			NeighbourY=GlobalY+Voxel_Neighbors[NeighbourID].Y
 			NeighbourZ=GlobalZ+Voxel_Neighbors[NeighbourID].Z
@@ -828,9 +828,29 @@ function Voxel_UpdateChunkSunLight(World ref as WorldData,ChunkX,ChunkZ,StartSun
 					FrontierTemp.X=NeighbourX
 					FrontierTemp.Y=NeighbourY
 					FrontierTemp.Z=NeighbourZ
-					
-					World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunFrontier.insert(FrontierTemp)
-					if NeighbourChunkX<>ChunkX or NeighbourChunkZ<>ChunkZ then Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)				
+
+//~					if NeighbourChunkX<>ChunkX or NeighbourChunkZ<>ChunkZ then Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)
+//~					if NeighbourLocalX=0 or NeighbourLocalX=Voxel_ChunkSize-1 or NeighbourLocalZ=0 or NeighbourLocalZ=Voxel_ChunkSize-1
+//~						Voxel_AddChunktoLoadList(NeighbourChunkX,NeighbourChunkZ)
+//~					endif
+					if NeighbourChunkX=ChunkX and NeighbourChunkZ=ChunkZ
+						World.Chunk[ChunkX,ChunkZ].SunFrontier.insert(FrontierTemp)
+						
+						if NeighbourLocalX=0 and Direction=FaceLeft
+							World.Chunk[ChunkX-1,ChunkZ].SunFrontier.insert(FrontierTemp)
+							Voxel_AddChunktoLoadList(ChunkX-1,ChunkZ)
+						elseif NeighbourLocalX=Voxel_ChunkSize-1 and Direction=FaceRight
+							World.Chunk[ChunkX+1,ChunkZ].SunFrontier.insert(FrontierTemp)
+							Voxel_AddChunktoLoadList(ChunkX+1,ChunkZ)
+						endif
+						if NeighbourLocalZ=0 and Direction=FaceBack
+							World.Chunk[ChunkX,ChunkZ-1].SunFrontier.insert(FrontierTemp)
+							Voxel_AddChunktoLoadList(ChunkX,ChunkZ-1)
+						elseif NeighbourLocalZ=Voxel_ChunkSize-1 and Direction=FaceFront
+							World.Chunk[ChunkX,ChunkZ+1].SunFrontier.insert(FrontierTemp)
+							Voxel_AddChunktoLoadList(ChunkX,ChunkZ+1)
+						endif
+					endif
 					
 					if NeighbourID=1 and CurrentSunLight=15
 						World.Chunk[NeighbourChunkX,NeighbourChunkZ].SunLight[NeighbourLocalX,NeighbourY,NeighbourLocalZ]=CurrentSunLight
@@ -1106,12 +1126,12 @@ endfunction
 function Voxel_GenerateCubeFaces(Object ref as MeshData,World ref as WorldData,LocalX,LocalY,LocalZ,GlobalX,GlobalZ,AttributeID)	
 	local LightValue as integer
 	
-	Voxel_TempSubimages[0]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].UpID]
-	Voxel_TempSubimages[1]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].DownID]
-	Voxel_TempSubimages[2]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].BackID]
-	Voxel_TempSubimages[3]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].FrontID]
-	Voxel_TempSubimages[4]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].RightID]
-	Voxel_TempSubimages[5]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].LeftID]
+	Voxel_TempSubimages[FaceUP]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].UpID]
+	Voxel_TempSubimages[FaceDown]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].DownID]
+	Voxel_TempSubimages[FaceBack]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].BackID]
+	Voxel_TempSubimages[FaceFront]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].FrontID]
+	Voxel_TempSubimages[FaceRight]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].RightID]
+	Voxel_TempSubimages[FaceLeft]=Voxel_Blocks.Subimages[Voxel_Blocks.Attributes[AttributeID].LeftID]
 	
 	CurrentBlockType=Voxel_GetBlockType(World,GlobalX,LocalY,GlobalZ)
 	NeighbourBlockType=Voxel_GetBlockType(World,GlobalX,LocalY+1,GlobalZ)
