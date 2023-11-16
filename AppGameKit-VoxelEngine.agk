@@ -23,6 +23,7 @@ firebase_config_path=
 url_scheme=
 deep_link=
 arcore=0
+app_icon_new_path=
 
 [ipa_settings]
 app_name=
@@ -53,15 +54,14 @@ FILE_0=camera.agc;-1
 FILE_1=constants.agc;-1
 FILE_2=core.agc;-1
 FILE_3=main.agc;-1
-FILE_4=noise.agc;-1
-FILE_5=voxel.agc;-1
+FILE_4=voxel.agc;-1
 
 [files]
-FILE_NAME_0=0;camera.agc;15;0
-FILE_NAME_1=0;constants.agc;25;1
-FILE_NAME_2=0;core.agc;148;2
-FILE_NAME_3=0;main.agc;9;3
-FILE_NAME_4=0;voxel.agc;350;4
+FILE_NAME_0=0;camera.agc;15;1
+FILE_NAME_1=0;constants.agc;25;2
+FILE_NAME_2=0;core.agc;148;3
+FILE_NAME_3=0;main.agc;20;4
+FILE_NAME_4=0;voxel.agc;350;5
 
 [watchvariables]
 watch_variable=@Version;
@@ -71,3 +71,5 @@ watch_variable=Voxel_BlockLightNeighbors[NeighbourID];
 watch_variable=World.Terrain[CubeX,CubeY,CubeZ].BlockLight;
 watch_variable=World.Terrain[NeighbourX,NeighbourY,NeighbourZ].BlockLight;
 
+[project]
+description=

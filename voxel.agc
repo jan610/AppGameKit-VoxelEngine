@@ -122,6 +122,7 @@ global Voxel_OpaqueShaderID as integer
 global Voxel_WaterShaderID as integer
 global Voxel_TempID as integer
 global Voxel_UpdateTimer# as float
+global Voxel_ViewDistance as integer
 global Voxel_CameraChunkOldX as integer
 global Voxel_CameraChunkOldZ as integer
 global Voxel_WorldName$ as string
@@ -144,7 +145,7 @@ global Voxel_DebugIterations as integer
 // Functions
 
 // Initialise the Voxel Engine
-function Voxel_Init(World ref as WorldData,ChunkSize,SizeX,SizeY,SizeZ,File$,WorldName$)
+function Voxel_Init(World ref as WorldData,ChunkSize,SizeX,SizeY,SizeZ,File$,WorldName$,ViewDistance)
 	Voxel_DiffuseImageID=LoadImage(File$)
 //~	Voxel_NormalImageID=LoadImage(StringInsertAtDelemiter(File$,"_n.","."))
 	
@@ -156,6 +157,7 @@ function Voxel_Init(World ref as WorldData,ChunkSize,SizeX,SizeY,SizeZ,File$,Wor
 	
 	Voxel_WorldName$=WorldName$
 	Voxel_AmbientLight=2
+	Voxel_ViewDistance=ViewDistance
 	Voxel_ChunkSize=ChunkSize
 	Voxel_ChunkMax.X=trunc(SizeX/Voxel_ChunkSize)
 	Voxel_ChunkMax.Z=trunc(SizeZ/Voxel_ChunkSize)
@@ -325,6 +327,8 @@ function Voxel_LoadChunk(Chunk ref as ChunkData,ChunkX,ChunkZ)
 				Chunk.BlockType[LocalX,LocalY,LocalZ]=ReadByte(1)
 //~				Chunk.BlockLight[LocalX,LocalY,LocalZ]=ReadByte(1)
 //~				Chunk.SunLight[LocalX,LocalY,LocalZ]=ReadByte(1)
+				Chunk.BlockLight[LocalX,LocalY,LocalZ]=Voxel_AmbientLight
+				Chunk.SunLight[LocalX,LocalY,LocalZ]=Voxel_AmbientLight
             next LocalY
             Chunk.Height[LocalX,LocalZ]=Height
         next LocalZ
@@ -411,7 +415,7 @@ function Voxel_SetSunLight(World ref as WorldData,GlobalX,GlobalY,GlobalZ,LightV
 	World.Chunk[ChunkX,ChunkZ].SunLight[LocalX,GlobalY,LocalZ]=LightValue
 endfunction
 
-function Voxel_UpdateChunks(World ref as WorldData,CameraX,CameraZ,ViewDistance)	
+function Voxel_UpdateChunks(World ref as WorldData,CameraX,CameraZ)	
 	Voxel_CameraChunkX=trunc(CameraX/Voxel_ChunkSize)
 	Voxel_CameraChunkZ=trunc(CameraZ/Voxel_ChunkSize)
 	
@@ -421,10 +425,10 @@ function Voxel_UpdateChunks(World ref as WorldData,CameraX,CameraZ,ViewDistance)
 		Voxel_CameraChunkOldX=Voxel_CameraChunkX
 		Voxel_CameraChunkOldZ=Voxel_CameraChunkZ
 
-		MinX=Core_Clamp(Voxel_CameraChunkX-ViewDistance,0,Voxel_ChunkMax.X)
-		MaxX=Core_Clamp(Voxel_CameraChunkX+ViewDistance,0,Voxel_ChunkMax.X)
-		MinZ=Core_Clamp(Voxel_CameraChunkZ-ViewDistance,0,Voxel_ChunkMax.Z)
-		MaxZ=Core_Clamp(Voxel_CameraChunkZ+ViewDistance,0,Voxel_ChunkMax.Z)
+		MinX=Core_Clamp(Voxel_CameraChunkX-Voxel_ViewDistance,0,Voxel_ChunkMax.X)
+		MaxX=Core_Clamp(Voxel_CameraChunkX+Voxel_ViewDistance,0,Voxel_ChunkMax.X)
+		MinZ=Core_Clamp(Voxel_CameraChunkZ-Voxel_ViewDistance,0,Voxel_ChunkMax.Z)
+		MaxZ=Core_Clamp(Voxel_CameraChunkZ+Voxel_ViewDistance,0,Voxel_ChunkMax.Z)
 		
 		if CameraDirX = 1
 		    for ChunkZ = MinZ to MaxZ
@@ -474,7 +478,7 @@ function Voxel_UpdateChunks(World ref as WorldData,CameraX,CameraZ,ViewDistance)
 		    next ChunkX
 		endif
 	
-		for Dist=0 to ViewDistance
+		for Dist=0 to Voxel_ViewDistance
 			Voxel_ChunkView.Min.X=Core_Clamp(Voxel_CameraChunkX-Dist,0,Voxel_ChunkMax.X)
 			Voxel_ChunkView.Min.Z=Core_Clamp(Voxel_CameraChunkZ-Dist,0,Voxel_ChunkMax.Z)
 			Voxel_ChunkView.Max.X=Core_Clamp(Voxel_CameraChunkX+Dist,0,Voxel_ChunkMax.X)
@@ -537,7 +541,8 @@ function Voxel_GenerateChunk(Chunk ref as Chunkdata,ChunkX,ChunkZ)
 			NoiseZ=ChunkZ*Voxel_ChunkSize+LocalZ
 			
 			Value1#=GetNoiseXY(NoiseX/Voxel_Frecueny2D#,NoiseZ/Voxel_Frecueny2D#)*Voxel_BlockMax.Y*0.5+0.5
-			GrassLayer=Voxel_GrassHeight+Value1#/6.0
+			Value2#=GetNoiseXY(NoiseX/(Voxel_Frecueny2D#*2.0),NoiseZ/(Voxel_Frecueny2D#*2.0))*Voxel_BlockMax.Y*0.5+0.5
+			GrassLayer=Voxel_GrassHeight+(Value1#+Value2#)/6.0
 			DirtHeight=GrassLayer-3
 			SeaHeight=Voxel_SeaHeight
 			SandHeight=SeaHeight

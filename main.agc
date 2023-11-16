@@ -2,7 +2,6 @@
 // Created: 20-07-31
 
 // show all errors
-//~#include ".\..\Templates\ShaderPack\Includes\ShaderPack.agc"
 SetErrorMode(2)
 
 #include "constants.agc"
@@ -29,7 +28,7 @@ SetCameraRange(1,0.25,150)
 SetFogMode(1)
 SetFogRange(128,150)
 SetSkyBoxVisible(1)
-SetGenerateMipmaps(0)
+SetGenerateMipmaps(1)
 SetDefaultMinFilter(0)
 SetDefaultMagFilter(0)
 
@@ -38,7 +37,7 @@ Voxel_LoadBlockAttributes(TERRAIN_JSON)
 
 World as WorldData
 
-Voxel_Init(World,16,256,64,256,TERRAIN_IMG,"TestWorld")
+Voxel_Init(World,16,256,64,256,TERRAIN_IMG,"TestWorld",5)
 
 SetupNoise (1,1,2,0.5)
 
@@ -79,16 +78,16 @@ do
     NewCameraY#=GetCameraY(1)
     NewCameraZ#=GetCameraZ(1)
 
-//~ if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
-//~		NewCameraX#=GetObjectRayCastSlideX(0)
-//~		NewCameraY#=GetObjectRayCastSlideY(0)
-//~		NewCameraZ#=GetObjectRayCastSlideZ(0)
+	// if ObjectSphereSlide(0,OldCameraX#,OldCameraY#,OldCameraZ#,NewCameraX#,NewCameraY#,NewCameraZ#,0.25)>0
+	// 	NewCameraX#=GetObjectRayCastSlideX(0)
+	// 	NewCameraY#=GetObjectRayCastSlideY(0)
+	// 	NewCameraZ#=GetObjectRayCastSlideZ(0)
 
-//~		SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
-//~	endif
+	// 	SetCameraPosition(1,NewCameraX#,NewCameraY#,NewCameraZ#)
+	// endif
 
 	if GetRawKeyPressed(KEY_F8) then ChunkUpdateSwitch=1-ChunkUpdateSwitch
-	if ChunkUpdateSwitch=1 then Voxel_UpdateChunks(World,NewCameraX#,NewCameraZ#,4)
+	if ChunkUpdateSwitch=1 then Voxel_UpdateChunks(World,NewCameraX#,NewCameraZ#)
 
 	BlockType=BlockType+GetRawMouseWheelDelta()/3.0
 	BlockType=Core_Clamp(BlockType,1,Voxel_Blocks.Attributes.length)
@@ -126,15 +125,14 @@ do
 		ChunkX=Core_Clamp(ChunkX,0,Voxel_ChunkMax.X)
 		ChunkZ=Core_Clamp(ChunkZ,0,Voxel_ChunkMax.Z)
 		
-		LocalX=Mod(HitInsideX,Voxel_ChunkSize)
-		LocalY=HitInsideY
-		LocalZ=Mod(HitInsideZ,Voxel_ChunkSize)
-		if LocalX<0 then inc LocalX,Voxel_ChunkSize
-		if LocalZ<0 then inc LocalZ,Voxel_ChunkSize
+		LocalX=Core_WrapInteger(HitInsideX,Voxel_ChunkSize)
+		LocalZ=Core_WrapInteger(HitInsideZ,Voxel_ChunkSize)
+		LocalOutsideX=Core_WrapInteger(HitInsideX,Voxel_ChunkSize)
+		LocalOutsideZ=Core_WrapInteger(HitInsideZ,Voxel_ChunkSize)
 		
-		InsideBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,LocalY,LocalZ]
-//~		OutsideBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[HitOutsideX,HitOutsideY,HitOutsideZ]
-//~		OutsideSunLight=World.Chunk[ChunkX,ChunkZ].SunLight[HitOutsideX,HitOutsideY,HitOutsideZ]
+		InsideBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalX,HitInsideY,LocalZ]
+~		OutsideBlockLight=World.Chunk[ChunkX,ChunkZ].BlockLight[LocalOutsideX,HitOutsideY,LocalOutsideZ]
+~		OutsideSunLight=World.Chunk[ChunkX,ChunkZ].SunLight[LocalOutsideX,HitOutsideY,LocalOutsideZ]
 		
 		Height=World.Chunk[ChunkX,ChunkZ].Height[LocalX,LocalZ]
 		
@@ -199,7 +197,7 @@ do
 
 	// TODO A complete Logging by pressing any key
     print("FPS: "+str(ScreenFPS(),0)+ ", FrameTime: "+str(GetFrameTime(),5))
-	print("Local; "+str(LocalX)+","+str(LocalY)+","+str(LocalZ))
+	print("Local; "+str(LocalX)+","+str(LocalZ))
 	print("HitInside; "+str(HitInsideX)+","+str(HitInsideY)+","+str(HitInsideZ))
 	print("HitOutside; "+str(HitOutsideX)+","+str(HitOutsideY)+","+str(HitOutsideZ))
 	print("Height; "+str(Height))
@@ -208,8 +206,8 @@ do
 	print("Block Type: "+str(BlockType))
 	print("Block Name: "+BlockName$)
 	print("Inside Block Light: "+str(InsideBlockLight))
-//~	print("OutsideBlock Light: "+str(OutsideBlockLight))
-//~	print("Outside Sun Light: "+str(OutsideSunLight))
+~	print("OutsideBlock Light: "+str(OutsideBlockLight))
+~	print("Outside Sun Light: "+str(OutsideSunLight))
 	print("Chunk Updating: "+str(ChunkUpdateSwitch))
 	print("Chunks in List: "+str(Voxel_LoadChunkList.length))
 	Print("Chunk Time: "+str(Voxel_DebugChunkTime#))
